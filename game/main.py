@@ -33,7 +33,7 @@ except:
 def start_new_game():
     """Reset all game state to start a fresh run."""
     global room_manager, player, enemies, level, enemy_spawner, notifications
-    global bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud
+    global bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems
 
     # Create room manager with corridors
     room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
@@ -43,19 +43,23 @@ def start_new_game():
     player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
     player = Player(player_start_x, player_start_y)
 
-enemies = []
-level = 1
-enemy_spawner = EnemySpawner(level, room_manager)
-notifications = []
-bullets = []
-bullets_cooldown = 0
-damage_cooldown = 0
-blood_systems = []  # List for blood particle systems
+    # Reset dynamic game state
+    enemies = []
+    level = 1
+    enemy_spawner = EnemySpawner(level, room_manager)
+    notifications = []
+    bullets = []
+    bullets_cooldown = 0
+    damage_cooldown = 0
+    blood_systems = []
 
-visited_rooms = {0}
-cleared_rooms = set()
+    # Rooms progress
+    visited_rooms = {0}
+    cleared_rooms = set()
 
-hud = HeartsHUD()
+    # HUD
+    hud = HeartsHUD()
+
 
 
 def show_game_over(screen, font):
