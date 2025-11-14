@@ -45,7 +45,6 @@ visited_rooms = {0}  # Start room is visited
 
 hud = HeartsHUD()
 
-pozdro = "elo"
 running = True
 
 while running:
@@ -132,15 +131,18 @@ while running:
         if bullet.y > SCREEN_HEIGHT or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.x < 0:
             bullets.remove(bullet)
 
-    player.update()
+    player.update(pygame.key.get_pressed())
     player.draw(screen)
 
-    # Display current room and visited rooms
+    # Draw HUD (hearts)
+    hud.draw(screen, player)
+
+    # Display current room and visited rooms in TOP-RIGHT corner
     room_text = font.render(f"Room: {room_manager.current_room_id}", True, (255, 255, 255))
-    screen.blit(room_text, (20, 20))
+    screen.blit(room_text, (SCREEN_WIDTH - room_text.get_width() - 20, 20))
 
     visited_text = font.render(f"Visited: {sorted(visited_rooms)}", True, (200, 200, 200))
-    screen.blit(visited_text, (20, 60))
+    screen.blit(visited_text, (SCREEN_WIDTH - visited_text.get_width() - 20, 60))
 
     for bullet in bullets[:]:
         for enemy in enemies[:]:
