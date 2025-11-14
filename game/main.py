@@ -48,6 +48,9 @@ damage_cooldown = 0
 # Track visited rooms
 visited_rooms = {0}  # Start room is visited
 
+# Track cleared rooms (where all enemies were killed)
+cleared_rooms = set()
+
 hud = HeartsHUD()
 
 running = True
@@ -97,8 +100,12 @@ while running:
         visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
         enemies.clear()
-        # Reset enemy spawner for new room's enemy type
-        enemy_spawner.reset_for_new_room()
+        # Reset enemy spawner for new room's enemy type (only if room not cleared)
+        if room_manager.current_room_id not in cleared_rooms:
+            enemy_spawner.reset_for_new_room()
+        else:
+            # Room is cleared, don't spawn enemies
+            enemy_spawner.enemies_spawned_in_room = enemy_spawner.max_enemies_for_room
         # Add notifications
         notifications.append(
             Notification(player.x, player.y, "New Room!", "cyan", font)
@@ -107,7 +114,14 @@ while running:
         notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
 
 
-    enemy_spawner.update(enemies)
+    # Spawn enemies only if room is not cleared
+    if room_manager.current_room_id not in cleared_rooms:
+        enemy_spawner.update(enemies)
+
+    # Check if room is now cleared (all enemies killed)
+    if room_manager.current_room_id not in cleared_rooms and enemy_spawner.enemies_spawned_in_room >= enemy_spawner.max_enemies_for_room and len(enemies) == 0:
+        cleared_rooms.add(room_manager.current_room_id)
+        notifications.append(Notification(player.x, player.y, "Room Cleared!", "green", font))
 
 
     for enemy in enemies:
@@ -141,6 +155,11 @@ while running:
 
     visited_text = font.render(f"Visited: {sorted(visited_rooms)}", True, (200, 200, 200))
     screen.blit(visited_text, (SCREEN_WIDTH - visited_text.get_width() - 20, 60))
+
+    # Display cleared rooms
+    if cleared_rooms:
+        cleared_text = font.render(f"Cleared: {sorted(cleared_rooms)}", True, (100, 255, 100))
+        screen.blit(cleared_text, (SCREEN_WIDTH - cleared_text.get_width() - 20, 100))
 
     for bullet in bullets[:]:
         for enemy in enemies[:]:
