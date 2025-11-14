@@ -12,7 +12,7 @@ pygame.init()
 # Fullscreen mode
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 SCREEN_WIDTH, SCREEN_HEIGHT = screen.get_size()
-pygame.display.set_caption("Vampire_Survivor")
+pygame.display.set_caption("Hackaton Game")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Calibri.ttf", 30)
 
@@ -51,18 +51,6 @@ while running:
             if event.key == K_ESCAPE:
                 running = False
 
-
-
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_a] and player.x > GAME_AREA_X:
-        player.x = max(GAME_AREA_X, player.x - player.movement)
-    if keys[pygame.K_d] and player.x + PLAYER_SIZE < GAME_AREA_X + GAME_AREA_WIDTH:
-        player.x = min(GAME_AREA_X + GAME_AREA_WIDTH - PLAYER_SIZE, player.x + player.movement)
-    if keys[pygame.K_w] and player.y > GAME_AREA_Y:
-        player.y = max(GAME_AREA_Y, player.y - player.movement)
-    if keys[pygame.K_s] and player.y + PLAYER_SIZE < GAME_AREA_Y + GAME_AREA_HEIGHT:
-        player.y = min(GAME_AREA_Y + GAME_AREA_HEIGHT - PLAYER_SIZE, player.y + player.movement)
-
     mouse_buttons = pygame.mouse.get_pressed()
     if mouse_buttons[0]:
         x, y = pygame.mouse.get_pos()
@@ -70,12 +58,7 @@ while running:
             bullets.append(Bullet(player,  x , y))
             bullets_cooldown = FPS / 3
 
-
-
-
-
     enemy_spawner.update(enemies)
-
 
     for enemy in enemies:
         enemy.update(player.x, player.y)
@@ -94,7 +77,7 @@ while running:
         if bullet.y > SCREEN_HEIGHT or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.x < 0:
             bullets.remove(bullet)
 
-    player.update()
+    player.update(pygame.key.get_pressed())
     player.draw(screen)
 
     for bullet in bullets[:]:
@@ -108,14 +91,6 @@ while running:
                 bullets.remove(bullet)
                 break
 
-
-
-
-
-
-
     pygame.display.update()
-
-
 
 pygame.quit()
