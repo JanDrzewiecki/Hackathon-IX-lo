@@ -5,7 +5,7 @@ from enemy_spawner import *
 from notification import *
 from bullet import *
 from settings import *
-from room import *
+from room_manager import RoomManager
 
 pygame.init()
 
@@ -16,12 +16,12 @@ pygame.display.set_caption("Hackaton Game")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Calibri.ttf", 30)
 
-# Create room with 200px margin
-room = Room(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
-GAME_AREA_X = room.x
-GAME_AREA_Y = room.y
-GAME_AREA_WIDTH = room.width
-GAME_AREA_HEIGHT = room.height
+# Create room manager with corridors
+room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
+GAME_AREA_X = room_manager.room_x
+GAME_AREA_Y = room_manager.room_y
+GAME_AREA_WIDTH = room_manager.room_width
+GAME_AREA_HEIGHT = room_manager.room_height
 
 # Create player in center of game area
 player_start_x = GAME_AREA_X + GAME_AREA_WIDTH // 2 - PLAYER_SIZE // 2
@@ -29,7 +29,7 @@ player_start_y = GAME_AREA_Y + GAME_AREA_HEIGHT // 2 - PLAYER_SIZE // 2
 player = Player(player_start_x, player_start_y)
 enemies = []
 level = 1
-enemy_spawner = EnemySpawner(level, room)
+enemy_spawner = EnemySpawner(level, room_manager)
 notifications = []
 bullets = []
 bullets_cooldown = 0
@@ -41,8 +41,8 @@ while running:
     clock.tick(FPS)
     screen.fill((0, 0, 0))  #(R,G,B)
 
-    # Draw room
-    room.draw(screen)
+    # Draw room with corridors
+    room_manager.draw(screen)
 
     for event in pygame.event.get():
         if event.type == QUIT:
