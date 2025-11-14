@@ -3,9 +3,10 @@ from settings import*
 from hit_box import*
 
 class Player:
-    def __init__(self):
-        self.x = SCREEN_WIDTH //2
-        self.y = SCREEN_HEIGHT // 2
+    def __init__(self, start_x=None, start_y=None):
+        # Use provided position or default to center of screen
+        self.x = start_x if start_x is not None else SCREEN_WIDTH // 2
+        self.y = start_y if start_y is not None else SCREEN_HEIGHT // 2
         self.hp = 200
         self.ad = 20
         self.movement = 50
