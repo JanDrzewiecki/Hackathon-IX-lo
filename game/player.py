@@ -6,7 +6,8 @@ class Player:
     def __init__(self):
         self.x = SCREEN_WIDTH //2
         self.y = SCREEN_HEIGHT // 2
-        self.hp = 200
+        self.max_hp = 60
+        self.hp = self.max_hp
         self.ad = 20
         self.movement = 50
         self.hit_box = HitBox(self.x, self.y, PLAYER_SIZE//2 - 2, PLAYER_SIZE//2)
