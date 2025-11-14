@@ -34,6 +34,8 @@ notifications = []
 bullets = []
 bullets_cooldown = 0
 
+# Track visited rooms
+visited_rooms = {0}  # Start room is visited
 
 running = True
 
@@ -76,10 +78,12 @@ while running:
     if should_transition:
         # Teleport player to opposite corridor
         player.x, player.y = new_x, new_y
+        # Mark new room as visited
+        visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
         enemies.clear()
-        # Optional: Add notification
-        notifications.append(Notification(player.x, player.y, "New Room!", "cyan", font))
+        # Add notification showing room number
+        notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
 
     mouse_buttons = pygame.mouse.get_pressed()
     if mouse_buttons[0]:
@@ -114,6 +118,13 @@ while running:
 
     player.update()
     player.draw(screen)
+
+    # Display current room and visited rooms
+    room_text = font.render(f"Room: {room_manager.current_room_id}", True, (255, 255, 255))
+    screen.blit(room_text, (20, 20))
+
+    visited_text = font.render(f"Visited: {sorted(visited_rooms)}", True, (200, 200, 200))
+    screen.blit(visited_text, (20, 60))
 
     for bullet in bullets[:]:
         for enemy in enemies[:]:
