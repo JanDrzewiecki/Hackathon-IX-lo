@@ -2,6 +2,7 @@ import pygame
 import random
 from settings import *
 from hit_box import*
+from enemy_type import EnemyType
 
 
 class RoomNode:
@@ -14,6 +15,8 @@ class RoomNode:
             'left': None,
             'right': None
         }
+        # Each room has a random enemy type
+        self.enemy_type = random.choice([EnemyType.WEAK, EnemyType.MEDIUM, EnemyType.STRONG])
 
 
 class Corridor:
@@ -221,7 +224,10 @@ class RoomManager:
 
             conn_str = ", ".join(connections) if connections else "No connections"
             dist_str = f"(distance: {distances.get(room_id, '?')})"
-            print(f"  Room [{room_id}] {dist_str}: {conn_str}")
+
+            # Enemy type info
+            enemy_name = room.enemy_type.name
+            print(f"  Room [{room_id}] {dist_str} - Enemy: {enemy_name}: {conn_str}")
 
         print("="*60 + "\n")
 

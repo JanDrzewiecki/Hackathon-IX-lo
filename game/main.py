@@ -45,6 +45,7 @@ while running:
     clock.tick(FPS)
     screen.fill((0, 0, 0))
 
+    # Draw room with corridors
     room_manager.draw(screen)
 
     for event in pygame.event.get():
@@ -79,6 +80,9 @@ while running:
         visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
         enemies.clear()
+        # Reset enemy spawner for new room's enemy type
+        enemy_spawner.reset_for_new_room()
+        # Add notifications
         notifications.append(
             Notification(player.x, player.y, "New Room!", "cyan", font)
         )

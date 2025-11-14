@@ -16,6 +16,7 @@ class Room:
         # Calculate room size based on screen size minus margins on all sides
         self.width = screen_width - (2 * margin_pixels)
         self.height = screen_height - (2 * margin_pixels)
+        print(self.height, self.width)
 
         # Position the room with exact margin from edges
         self.x = margin_pixels
