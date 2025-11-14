@@ -18,15 +18,13 @@ font = pygame.font.SysFont("Calibri.ttf", 30)
 
 # Create room manager with corridors
 room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
-GAME_AREA_X = room_manager.room_x
-GAME_AREA_Y = room_manager.room_y
-GAME_AREA_WIDTH = room_manager.room_width
-GAME_AREA_HEIGHT = room_manager.room_height
 
 # Create player in center of game area
-player_start_x = GAME_AREA_X + GAME_AREA_WIDTH // 2 - PLAYER_SIZE // 2
-player_start_y = GAME_AREA_Y + GAME_AREA_HEIGHT // 2 - PLAYER_SIZE // 2
+player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
+player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
+
 player = Player(player_start_x, player_start_y)
+
 enemies = []
 level = 1
 enemy_spawner = EnemySpawner(level, room_manager)
@@ -34,53 +32,48 @@ notifications = []
 bullets = []
 bullets_cooldown = 0
 
-
 running = True
 
 while running:
     clock.tick(FPS)
-    screen.fill((0, 0, 0))  #(R,G,B)
+    screen.fill((0, 0, 0))
 
-    # Draw room with corridors
     room_manager.draw(screen)
 
     for event in pygame.event.get():
         if event.type == QUIT:
             running = False
-        if event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
-                running = False
+        if event.type == KEYDOWN and event.key == K_ESCAPE:
+            running = False
+
     keys = pygame.key.get_pressed()
+
+    # DEBUG: Print player position when keys are pressed
+    if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_a] or keys[pygame.K_d]:
+        old_x, old_y = player.x, player.y
+        print(f"Before move: ({old_x:.1f}, {old_y:.1f})", end=" -> ")
+
+    # SHOOTING
     mouse_buttons = pygame.mouse.get_pressed()
     if mouse_buttons[0]:
-        x, y = pygame.mouse.get_pos()
+        mx, my = pygame.mouse.get_pos()
         if bullets_cooldown <= 0:
-            bullets.append(Bullet(player,  x , y))
+            bullets.append(Bullet(player, mx, my))
             bullets_cooldown = FPS / 3
-    old_x, old_y = player.x, player.y
-        # Movement with corridor support
-    if keys[pygame.K_a]:
-        player.x = player.x - player.movement
-    if keys[pygame.K_d]:
-        player.x = player.x + player.movement
-    if keys[pygame.K_w]:
-        player.y = player.y - player.movement
-    if keys[pygame.K_s]:
-        player.y = player.y + player.movement
 
-    # Check for corridor transition (teleportation to new room)
-    should_transition, new_x, new_y, exit_direction = room_manager.check_corridor_transition(
-        player.x, player.y, PLAYER_SIZE)
+    did_teleport = player.update(keys, room_manager)
 
-    if should_transition:
-        # Teleport player to opposite corridor
-        player.x, player.y = new_x, new_y
-        # Clear enemies when changing rooms
+    # DEBUG: Print player position after update if keys were pressed
+    if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_a] or keys[pygame.K_d]:
+        print(f"After move: ({player.x:.1f}, {player.y:.1f})")
+
+    if did_teleport:
         enemies.clear()
-        # Optional: Add notification
-        notifications.append(Notification(player.x, player.y, "New Room!", "cyan", font))
+        notifications.append(
+            Notification(player.x, player.y, "New Room!", "cyan", font)
+        )
 
-    enemy_spawner.update(enemies)
+    # enemy_spawner.update(enemies)
 
     for enemy in enemies:
         enemy.update(player.x, player.y)
@@ -96,11 +89,8 @@ while running:
 
     bullets_cooldown -= 1
     for bullet in bullets[:]:
-        if bullet.y > SCREEN_HEIGHT or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.x < 0:
+        if bullet.x < 0 or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.y > SCREEN_HEIGHT:
             bullets.remove(bullet)
-
-    player.update(pygame.key.get_pressed())
-    player.draw(screen)
 
     for bullet in bullets[:]:
         for enemy in enemies[:]:
@@ -112,6 +102,8 @@ while running:
                 notifications.append(Notification(bullet.x, bullet.y, 10, "gold", font))
                 bullets.remove(bullet)
                 break
+
+    player.draw(screen)
 
     pygame.display.update()
 

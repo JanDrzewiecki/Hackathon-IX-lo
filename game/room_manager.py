@@ -1,6 +1,7 @@
 import pygame
 import random
 from settings import *
+from hit_box import*
 
 
 class Corridor:
@@ -102,6 +103,44 @@ class RoomManager:
             'left': 'right',
             'right': 'left'
         }
+
+        # Create walls after corridors are defined
+        self.walls = self._create_walls()
+
+    def _create_walls(self):
+        """Tworzy listę prostokątów reprezentujących ściany pokoju"""
+        walls = []
+        thickness = self.border_width
+
+        # Ściany górne (po bokach korytarza top)
+        top_corridor = self.corridors['top']
+        walls.append(pygame.Rect(self.room_x, self.room_y - thickness,
+                                 top_corridor.x - self.room_x, thickness))
+        walls.append(pygame.Rect(top_corridor.x + top_corridor.corridor_width, self.room_y - thickness,
+                                 self.room_x + self.room_width - (top_corridor.x + top_corridor.corridor_width), thickness))
+
+        # Ściany dolne (po bokach korytarza bottom)
+        bottom_corridor = self.corridors['bottom']
+        walls.append(pygame.Rect(self.room_x, self.room_y + self.room_height,
+                                 bottom_corridor.x - self.room_x, thickness))
+        walls.append(pygame.Rect(bottom_corridor.x + bottom_corridor.corridor_width, self.room_y + self.room_height,
+                                 self.room_x + self.room_width - (bottom_corridor.x + bottom_corridor.corridor_width), thickness))
+
+        # Ściany lewe (po bokach korytarza left)
+        left_corridor = self.corridors['left']
+        walls.append(pygame.Rect(self.room_x - thickness, self.room_y,
+                                 thickness, left_corridor.y - self.room_y))
+        walls.append(pygame.Rect(self.room_x - thickness, left_corridor.y + left_corridor.corridor_height,
+                                 thickness, self.room_y + self.room_height - (left_corridor.y + left_corridor.corridor_height)))
+
+        # Ściany prawe (po bokach korytarza right)
+        right_corridor = self.corridors['right']
+        walls.append(pygame.Rect(self.room_x + self.room_width, self.room_y,
+                                 thickness, right_corridor.y - self.room_y))
+        walls.append(pygame.Rect(self.room_x + self.room_width, right_corridor.y + right_corridor.corridor_height,
+                                 thickness, self.room_y + self.room_height - (right_corridor.y + right_corridor.corridor_height)))
+
+        return walls
 
     def draw(self, screen):
         """Draw the room and corridors as one seamless area"""
@@ -266,4 +305,40 @@ class RoomManager:
     def get_bounds(self):
         """Return the room boundaries (x, y, width, height)"""
         return self.room_x, self.room_y, self.room_width, self.room_height
+
+    def check_wall_collision(self, player_hitbox):
+        """Check if player (circular hitbox) collides with any wall (rectangle)"""
+        for wall in self.walls:
+            # Check circle-to-rectangle collision
+            # Find the closest point on the rectangle to the circle center
+            closest_x = max(wall.x, min(player_hitbox.x, wall.x + wall.width))
+            closest_y = max(wall.y, min(player_hitbox.y, wall.y + wall.height))
+
+            # Calculate distance from circle center to this closest point
+            distance_x = player_hitbox.x - closest_x
+            distance_y = player_hitbox.y - closest_y
+
+            # If the distance is less than the circle's radius, there's a collision
+            distance_squared = distance_x * distance_x + distance_y * distance_y
+            if distance_squared < (player_hitbox.r * player_hitbox.r):
+                return True
+        return False
+
+    def check_room_transition(self, player):
+        """Check if player should transition to a new room and update position"""
+        # Get player size - using the scaled URANEK size
+        player_size = int(URANEK_FRAME_WIDTH * 0.7)  # matching the scale from settings
+
+        should_transition, new_x, new_y, direction = self.check_corridor_transition(
+            player.x, player.y, player_size
+        )
+
+        if should_transition:
+            player.x = new_x
+            player.y = new_y
+            player.hit_box.x = new_x
+            player.hit_box.y = new_y
+            return True
+
+        return False
 

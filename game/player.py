@@ -1,20 +1,27 @@
 import pygame
 from settings import *
-from hit_box import *
+from hit_box import HitBox
+
 
 class Player:
     def __init__(self, player_start_x, player_start_y):
         self.x = player_start_x
         self.y = player_start_y
+
         self.hp = 200
         self.ad = 20
-        self.movement = 8
+        self.movement = 5
         self.points = 0
-        self.hit_box = HitBox(self.x, self.y, PLAYER_SIZE // 2 - 2, PLAYER_SIZE // 2)
+
+        # Hitbox - use scaled size for proper collision detection
+        scaled_width = int(URANEK_FRAME_WIDTH * skale)
+        self.hit_box = HitBox(self.x, self.y, scaled_width // 2 - 5, scaled_width // 2)
+
+        # Animation
         self.frame_index = 0
         self.frame_timer = 0
         self.frame_speed = 6
-        self.frames = self.load_sheet("uranek.png", PLAYER_SIZE, PLAYER_SIZE)
+        self.frames = self.load_sheet("uranek.png",URANEK_FRAME_WIDTH,URANEK_FRAME_HEIGHT)
         self.current_sprite = self.frames[0]
 
     def load_sheet(self, path, frame_width, frame_height):
@@ -25,45 +32,65 @@ class Player:
         frames = []
 
         for col in range(cols):
-            rect = pygame.Rect(col * frame_width,0,frame_width,frame_height)
+            rect = pygame.Rect(col * frame_width, 0, frame_width, frame_height)
             frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
             frame.blit(sheet, (0, 0), rect)
-
             frame = pygame.transform.scale(frame, URANEK_SIZE)
-
             frames.append(frame)
 
         return frames
 
-    def update(self, keys):
-        moving = False
+    def update(self, keys, room_manager):
+        # Zapisz poprzednią pozycję
+        old_x = self.x
+        old_y = self.y
 
-        if keys[pygame.K_a] and self.x - PLAYER_SIZE >= 0:
-            self.x -= self.movement
-            moving = True
-
-        if keys[pygame.K_d] and self.x + PLAYER_SIZE <= SCREEN_WIDTH:
-            self.x += self.movement
-            moving = True
-
-        if keys[pygame.K_w] and self.y - PLAYER_SIZE >= 0:
+        # Ruch gracza
+        moved = False
+        if keys[pygame.K_w]:
             self.y -= self.movement
-            moving = True
-
-        if keys[pygame.K_s] and self.y + PLAYER_SIZE <= SCREEN_HEIGHT:
+            moved = True
+        if keys[pygame.K_s]:
             self.y += self.movement
-            moving = True
+            moved = True
+        if keys[pygame.K_a]:
+            self.x -= self.movement
+            moved = True
+        if keys[pygame.K_d]:
+            self.x += self.movement
+            moved = True
 
-        if moving:
+        # Update animation if player is moving
+        if moved:
             self.frame_timer += 1
             if self.frame_timer >= self.frame_speed:
                 self.frame_timer = 0
                 self.frame_index = (self.frame_index + 1) % len(self.frames)
+                self.current_sprite = self.frames[self.frame_index]
         else:
+            # Reset to first frame when not moving
             self.frame_index = 0
+            self.current_sprite = self.frames[0]
+            return False
 
-        self.current_sprite = self.frames[self.frame_index]
+        # Aktualizuj hit_box z nową pozycją
         self.hit_box.update_position(self.x, self.y)
+
+        # Sprawdź kolizje ze ścianami
+        collision = room_manager.check_wall_collision(self.hit_box)
+
+        if collision:
+            # Cofnij ruch przy kolizji
+            print(f"COLLISION! Reverting from ({self.x}, {self.y}) to ({old_x}, {old_y})")
+            self.x = old_x
+            self.y = old_y
+            self.hit_box.update_position(old_x, old_y)
+            return False
+
+        # Sprawdź teleportację do innego pokoju
+        did_teleport = room_manager.check_room_transition(self)
+
+        return did_teleport
 
     def draw(self, screen):
         screen.blit(self.current_sprite, (self.x, self.y))

@@ -13,8 +13,8 @@ class Bullet:
         self.vx /= normalize_factor
         self.vy /= normalize_factor
         self.r = BULLET_SIZE
-        self.movement = 2
-        self.hit_box = HitBox(self.x, self.y, PLAYER_SIZE // 4,ENEMY_SIZE // 2 )
+        self.movement = 10
+        self.hit_box = HitBox(self.x, self.y, URANEK_FRAME_WIDTH // 4,ENEMY_SIZE // 2 )
 
     def draw(self, screen):
         pygame.draw.circle(screen, "white", (self.x, self.y), self.r)
