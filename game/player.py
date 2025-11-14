@@ -22,6 +22,7 @@ class Player:
         self.frame_speed = 6
         self.frames = self.load_sheet("uranek.png", URANEK_FRAME_WIDTH, URANEK_FRAME_HEIGHT)
         self.current_sprite = self.frames[0]
+        self.facing_left = False  # Track if player is facing left
 
     def load_sheet(self, path, frame_width, frame_height):
         sheet = pygame.image.load(path).convert_alpha()
@@ -55,9 +56,11 @@ class Player:
         if keys[pygame.K_a]:
             self.x -= self.movement
             moved = True
+            self.facing_left = False  # Player is moving left (normal sprite)
         if keys[pygame.K_d]:
             self.x += self.movement
             moved = True
+            self.facing_left = True  # Player is moving right (flip sprite)
 
         # Update animation if player is moving
         if moved:
@@ -92,4 +95,9 @@ class Player:
         return did_teleport
 
     def draw(self, screen):
-        screen.blit(self.current_sprite, (self.x, self.y))
+        # Flip sprite horizontally if facing left
+        if self.facing_left:
+            flipped_sprite = pygame.transform.flip(self.current_sprite, True, False)
+            screen.blit(flipped_sprite, (self.x, self.y))
+        else:
+            screen.blit(self.current_sprite, (self.x, self.y))
