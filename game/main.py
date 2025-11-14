@@ -3,10 +3,6 @@ from pygame.locals import *
 from player import *
 from enemy_spawner import *
 from notification import *
-from settings import *
-from player import *
-from enemy_spawner import *
-from notification import *
 from bullet import *
 from settings import *
 from room_manager import RoomManager
@@ -72,21 +68,13 @@ while running:
             bullets_cooldown = FPS / 3
 
     did_teleport = player.update(keys, room_manager)
-    # Clamp position to room or corridor
-    player.x, player.y = room_manager.clamp_position(player.x, player.y, URANEK_FRAME_WIDTH)
-
-    # Check for corridor transition (teleportation to new room)
-    should_transition, new_x, new_y, exit_direction = room_manager.check_corridor_transition(
-        player.x, player.y, URANEK_FRAME_HEIGHT)
 
     # DEBUG: Print player position after update if keys were pressed
     if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_a] or keys[pygame.K_d]:
         print(f"After move: ({player.x:.1f}, {player.y:.1f})")
 
+    # Handle room transition
     if did_teleport:
-    if should_transition:
-        # Teleport player to opposite corridor
-        player.x, player.y = new_x, new_y
         # Mark new room as visited
         visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
@@ -97,18 +85,8 @@ while running:
         # Add notification showing room number
         notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
 
-    mouse_buttons = pygame.mouse.get_pressed()
-    if mouse_buttons[0]:
-        x, y = pygame.mouse.get_pos()
-        if bullets_cooldown <= 0:
-            bullets.append(Bullet(player,  x , y))
-            bullets_cooldown = FPS / 3
 
-
-
-
-
-    # enemy_spawner.update(enemies)
+    enemy_spawner.update(enemies)
 
 
     for enemy in enemies:
@@ -132,8 +110,6 @@ while running:
         if bullet.x < 0 or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.y > SCREEN_HEIGHT:
             bullets.remove(bullet)
 
-    player.update(pygame.key.get_pressed())
-    player.draw(screen)
 
     # Draw HUD (hearts)
     hud.draw(screen, player)

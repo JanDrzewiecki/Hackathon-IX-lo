@@ -104,10 +104,13 @@ class RoomManager:
         self.current_room_id = 0
         self.current_room = self.rooms[0]
 
+        # Initialize walls (will be populated by _build_corridors)
+        self.walls = []
+
         # Print the layout
         self._print_layout()
 
-        # Build corridors for current room
+        # Build corridors for current room (also creates walls)
         self._build_corridors()
 
     def _generate_6_rooms(self):
@@ -233,6 +236,72 @@ class RoomManager:
                     self.room_width, self.room_height,
                     self.screen_width, self.screen_height
                 )
+
+        # Create walls after corridors are built
+        self.walls = self._create_walls()
+
+    def _create_walls(self):
+        """Create wall rectangles for collision detection"""
+        walls = []
+        thickness = self.border_width
+
+        # Top wall (with gap for top corridor if present)
+        if 'top' in self.corridors:
+            top_corridor = self.corridors['top']
+            # Left section of top wall
+            walls.append(pygame.Rect(self.room_x, self.room_y - thickness,
+                                     top_corridor.x - self.room_x, thickness))
+            # Right section of top wall
+            walls.append(pygame.Rect(top_corridor.x + top_corridor.corridor_width, self.room_y - thickness,
+                                     self.room_x + self.room_width - (top_corridor.x + top_corridor.corridor_width), thickness))
+        else:
+            # Full top wall
+            walls.append(pygame.Rect(self.room_x, self.room_y - thickness,
+                                     self.room_width, thickness))
+
+        # Bottom wall (with gap for bottom corridor if present)
+        if 'bottom' in self.corridors:
+            bottom_corridor = self.corridors['bottom']
+            # Left section of bottom wall
+            walls.append(pygame.Rect(self.room_x, self.room_y + self.room_height,
+                                     bottom_corridor.x - self.room_x, thickness))
+            # Right section of bottom wall
+            walls.append(pygame.Rect(bottom_corridor.x + bottom_corridor.corridor_width, self.room_y + self.room_height,
+                                     self.room_x + self.room_width - (bottom_corridor.x + bottom_corridor.corridor_width), thickness))
+        else:
+            # Full bottom wall
+            walls.append(pygame.Rect(self.room_x, self.room_y + self.room_height,
+                                     self.room_width, thickness))
+
+        # Left wall (with gap for left corridor if present)
+        if 'left' in self.corridors:
+            left_corridor = self.corridors['left']
+            # Top section of left wall
+            walls.append(pygame.Rect(self.room_x - thickness, self.room_y,
+                                     thickness, left_corridor.y - self.room_y))
+            # Bottom section of left wall
+            walls.append(pygame.Rect(self.room_x - thickness, left_corridor.y + left_corridor.corridor_height,
+                                     thickness, self.room_y + self.room_height - (left_corridor.y + left_corridor.corridor_height)))
+        else:
+            # Full left wall
+            walls.append(pygame.Rect(self.room_x - thickness, self.room_y,
+                                     thickness, self.room_height))
+
+        # Right wall (with gap for right corridor if present)
+        if 'right' in self.corridors:
+            right_corridor = self.corridors['right']
+            # Top section of right wall
+            walls.append(pygame.Rect(self.room_x + self.room_width, self.room_y,
+                                     thickness, right_corridor.y - self.room_y))
+            # Bottom section of right wall
+            walls.append(pygame.Rect(self.room_x + self.room_width, right_corridor.y + right_corridor.corridor_height,
+                                     thickness, self.room_y + self.room_height - (right_corridor.y + right_corridor.corridor_height)))
+        else:
+            # Full right wall
+            walls.append(pygame.Rect(self.room_x + self.room_width, self.room_y,
+                                     thickness, self.room_height))
+
+        return walls
 
     def draw(self, screen):
         """Draw room and active corridors"""
