@@ -63,11 +63,50 @@ def start_new_game():
 
 
 def show_game_over(screen, font):
-    """Display Game Over screen with a PLAY AGAIN button.
-    Returns 'restart' if the button was clicked, or 'quit' if ESC/quit is pressed.
-    """
-    button_rect = pygame.Rect(0, 0, 260, 70)
-    button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 10)
+    gameover_img = None
+    try:
+        gameover_img = pygame.image.load("game/gameover.png").convert_alpha()
+    except Exception:
+        try:
+            gameover_img = pygame.image.load("gameover.png").convert_alpha()
+        except Exception:
+            gameover_img = None
+
+    if gameover_img is not None:
+        img = pygame.transform.smoothscale(gameover_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        img_rect = img.get_rect(topleft=(0, 0))
+    else:
+        img = None
+        img_rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+    button_img_raw = None
+    try:
+        button_img_raw = pygame.image.load("game/playagainbutton.png").convert_alpha()
+    except Exception:
+        try:
+            button_img_raw = pygame.image.load("playagainbutton.png").convert_alpha()
+        except Exception:
+            button_img_raw = None
+
+    if button_img_raw is not None:
+        raw_w, raw_h = button_img_raw.get_size()
+        target_h = int(SCREEN_HEIGHT * 0.18)
+        max_w = int(SCREEN_WIDTH * 0.45)
+        scale = min(target_h / raw_h, max_w / raw_w)
+        new_w = max(1, int(raw_w * scale))
+        new_h = max(1, int(raw_h * scale))
+        button_img = pygame.transform.smoothscale(button_img_raw, (new_w, new_h))
+        button_rect = button_img.get_rect()
+    else:
+        button_img = None
+        button_rect = pygame.Rect(0, 0, 360, 110)
+
+    button_rect.centerx = SCREEN_WIDTH // 2
+    button_rect.centery = int(SCREEN_HEIGHT * 0.85)
+
+    pressed = False
+    press_start = 0
+    press_duration_ms = 180
 
     while True:
         for event in pygame.event.get():
@@ -76,32 +115,60 @@ def show_game_over(screen, font):
             if event.type == KEYDOWN and event.key == K_ESCAPE:
                 return 'quit'
             if event.type == MOUSEBUTTONDOWN and event.button == 1:
-                if button_rect.collidepoint(event.pos):
-                    return 'restart'
+                if button_rect.collidepoint(event.pos) and not pressed:
+                    pressed = True
+                    press_start = pygame.time.get_ticks()
 
         screen.fill((0, 0, 0))
+        if img is not None:
+            screen.blit(img, img_rect)
 
-        go_text = font.render("GAME OVER", True, (255, 0, 0))
-        screen.blit(go_text, (SCREEN_WIDTH // 2 - go_text.get_width() // 2, SCREEN_HEIGHT // 2 - 120))
+        hint_text = font.render("ESC - Quit", True, (200, 200, 200))
+        screen.blit(hint_text, (20, 20))
 
-        info_text = font.render("Press ESC to quit", True, (200, 200, 200))
-        screen.blit(info_text, (SCREEN_WIDTH // 2 - info_text.get_width() // 2, SCREEN_HEIGHT // 2 - 70))
+        progress = 0.0
+        if pressed:
+            elapsed = pygame.time.get_ticks() - press_start
+            progress = max(0.0, min(1.0, elapsed / press_duration_ms))
 
-        # Hover effect color
-        hovered = button_rect.collidepoint(pygame.mouse.get_pos())
-        btn_color = (80, 180, 80) if hovered else (60, 140, 60)
-        pygame.draw.rect(screen, btn_color, button_rect, border_radius=12)
-        pygame.draw.rect(screen, (255, 255, 255), button_rect, width=2, border_radius=12)
+        scale_factor = 1.0 - 0.08 * progress
 
-        btn_text = font.render("PLAY AGAIN", True, (255, 255, 255))
-        screen.blit(btn_text, (button_rect.centerx - btn_text.get_width() // 2,
-                               button_rect.centery - btn_text.get_height() // 2))
+        if button_img is not None:
+            if scale_factor != 1.0:
+                new_w = max(1, int(button_img.get_width() * scale_factor))
+                new_h = max(1, int(button_img.get_height() * scale_factor))
+                scaled_btn = pygame.transform.smoothscale(button_img, (new_w, new_h))
+                scaled_rect = scaled_btn.get_rect(center=button_rect.center)
+                screen.blit(scaled_btn, scaled_rect.topleft)
+            else:
+                screen.blit(button_img, button_rect.topleft)
+        else:
+            hovered = button_rect.collidepoint(pygame.mouse.get_pos()) and not pressed
+            base_color = (60, 140, 60)
+            hover_color = (80, 180, 80)
+            btn_color = hover_color if hovered else base_color
+            draw_rect = button_rect.copy()
+            if scale_factor != 1.0:
+                draw_rect.width = max(1, int(draw_rect.width * scale_factor))
+                draw_rect.height = max(1, int(draw_rect.height * scale_factor))
+                draw_rect.center = button_rect.center
+            pygame.draw.rect(screen, btn_color, draw_rect, border_radius=12)
+            pygame.draw.rect(screen, (255, 255, 255), draw_rect, width=2, border_radius=12)
+            btn_text = font.render("PLAY AGAIN", True, (255, 255, 255))
+            screen.blit(btn_text, (draw_rect.centerx - btn_text.get_width() // 2,
+                                   draw_rect.centery - btn_text.get_height() // 2))
+
+        if progress > 0.0:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            alpha = int(180 * progress)
+            overlay.fill((0, 0, 0, alpha))
+            screen.blit(overlay, (0, 0))
+            if progress >= 1.0:
+                return 'restart'
 
         pygame.display.update()
         clock.tick(60)
 
-
-# Initial game state
 start_new_game()
 
 running = True
@@ -110,13 +177,10 @@ while running:
     clock.tick(FPS)
     screen.fill((0, 0, 0))
 
-    # Draw room background image if loaded
     if room_background:
-        # Scale image to fit screen
         scaled_bg = pygame.transform.scale(room_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_bg, (0, 0))
 
-    # Draw room with corridors
     room_manager.draw(screen)
 
     for event in pygame.event.get():
