@@ -17,6 +17,17 @@ pygame.display.set_caption("Hackaton Game")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Calibri.ttf", 30)
 
+# Load room background image
+try:
+    room_background = pygame.image.load("game/room-1.png").convert()
+except:
+    # If loading fails, try without 'game/' prefix
+    try:
+        room_background = pygame.image.load("room-1.png").convert()
+    except:
+        room_background = None
+        print("Warning: Could not load room-1.png")
+
 # Create room manager with corridors
 room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
 
@@ -44,6 +55,12 @@ running = True
 while running:
     clock.tick(FPS)
     screen.fill((0, 0, 0))
+
+    # Draw room background image if loaded
+    if room_background:
+        # Scale image to fit screen
+        scaled_bg = pygame.transform.scale(room_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.blit(scaled_bg, (0, 0))
 
     # Draw room with corridors
     room_manager.draw(screen)

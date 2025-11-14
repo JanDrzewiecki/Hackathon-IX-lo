@@ -6,7 +6,7 @@ class Bullet:
         self.y = player.y
         self.tx = target_x
         self.ty = target_y
-        self.ad = 100
+        self.ad = 10  # Changed from 100 to 10 for balanced gameplay
         self.vx = self.tx - self.x
         self.vy = self.ty - self.y
         normalize_factor = (self.vx ** 2 + self.vy ** 2) ** 0.5
