@@ -7,6 +7,7 @@ from bullet import *
 from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
+from blood_particles import BloodParticleSystem
 
 pygame.init()
 
@@ -42,19 +43,19 @@ def start_new_game():
     player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
     player = Player(player_start_x, player_start_y)
 
-    enemies = []
-    level = 1
-    enemy_spawner = EnemySpawner(level, room_manager)
-    notifications = []
-    bullets = []
-    bullets_cooldown = 0
-    damage_cooldown = 0
+enemies = []
+level = 1
+enemy_spawner = EnemySpawner(level, room_manager)
+notifications = []
+bullets = []
+bullets_cooldown = 0
+damage_cooldown = 0
+blood_systems = []  # List for blood particle systems
 
-    # Track visited and cleared rooms
-    visited_rooms = {0}
-    cleared_rooms = set()
+visited_rooms = {0}
+cleared_rooms = set()
 
-    hud = HeartsHUD()
+hud = HeartsHUD()
 
 
 def show_game_over(screen, font):
@@ -181,6 +182,14 @@ while running:
         bullet.update(bullets)
         bullet.draw(screen)
 
+    # Update and draw blood particle systems
+    for blood_system in blood_systems[:]:
+        blood_system.update()
+        blood_system.draw(screen)
+        # Remove dead particle systems
+        if not blood_system.is_alive():
+            blood_systems.remove(blood_system)
+
     bullets_cooldown -= 1
     damage_cooldown = max(0, damage_cooldown - 1)
     for bullet in bullets[:]:
@@ -208,9 +217,10 @@ while running:
             if bullet.hit_box.collide(enemy.hit_box):
                 enemy.hp -= bullet.ad
                 if enemy.hp <= 0:
+                    # Create green blood particle explosion
+                    blood_systems.append(BloodParticleSystem(enemy.x, enemy.y, num_particles=25))
                     enemies.remove(enemy)
                     player.points += 1
-                notifications.append(Notification(bullet.x, bullet.y, 10, "gold", font))
                 bullets.remove(bullet)
                 break
 

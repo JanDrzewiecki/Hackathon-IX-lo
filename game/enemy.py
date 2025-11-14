@@ -27,6 +27,24 @@ class Enemy:
         self.hit_box = HitBox(self.x, self.y, self.size // 2 - 2, self.size // 2)
         self.room = room
 
+        # Animation properties
+        self.frame_index = 0
+        self.frame_timer = 0
+        self.frame_speed = 8  # Animation speed
+        self.frames = []
+        self.current_sprite = None
+        self.facing_left = False  # Track if enemy is facing left
+
+        # Load sprite sheet based on enemy type
+        if self.enemy_type == EnemyType.WEAK:
+            self.frames = self.load_sheet("enemy1.png", 100, 100)
+            if self.frames:
+                self.current_sprite = self.frames[0]
+        elif self.enemy_type == EnemyType.MEDIUM:
+            self.frames = self.load_sheet("enemy2.png", 100, 100)
+            if self.frames:
+                self.current_sprite = self.frames[0]
+
         # Prepare heart icons once (shared)
         self._ensure_hearts_loaded()
 
@@ -35,6 +53,26 @@ class Enemy:
             heart, dim = load_heart_images(16, './heart2.png')
             Enemy._heart_img = heart
             Enemy._dim_heart_img = dim
+
+    def load_sheet(self, path, frame_width, frame_height):
+        """Load sprite sheet and split it into individual frames"""
+        try:
+            sheet = pygame.image.load(path).convert_alpha()
+            sheet_width, sheet_height = sheet.get_size()
+
+            cols = sheet_width // frame_width
+            frames = []
+
+            for col in range(cols):
+                rect = pygame.Rect(col * frame_width, 0, frame_width, frame_height)
+                frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
+                frame.blit(sheet, (0, 0), rect)
+                frames.append(frame)
+
+            return frames
+        except Exception as e:
+            print(f"Error loading enemy sprite {path}: {e}")
+            return []
 
     def set_room(self, room):
         """Set the room boundaries for this enemy."""
@@ -98,11 +136,32 @@ class Enemy:
                     screen.blit(Enemy._heart_img, (x, y0), area=area)
 
     def draw(self, screen):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
+        # Draw animated sprite for WEAK and MEDIUM enemies, otherwise draw colored square
+        if (self.enemy_type == EnemyType.WEAK or self.enemy_type == EnemyType.MEDIUM) and self.current_sprite:
+            # Flip sprite horizontally if facing left
+            if self.facing_left:
+                flipped_sprite = pygame.transform.flip(self.current_sprite, True, False)
+                sprite_rect = flipped_sprite.get_rect(center=(int(self.x + self.size // 2), int(self.y + self.size // 2)))
+                screen.blit(flipped_sprite, sprite_rect)
+            else:
+                sprite_rect = self.current_sprite.get_rect(center=(int(self.x + self.size // 2), int(self.y + self.size // 2)))
+                screen.blit(self.current_sprite, sprite_rect)
+        else:
+            # Draw colored square for other enemy types (STRONG)
+            pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
+
         # Draw hearts above enemy
         self._draw_enemy_hearts(screen)
 
     def update(self, player_x, player_y):
+        # Update animation for WEAK and MEDIUM enemies
+        if (self.enemy_type == EnemyType.WEAK or self.enemy_type == EnemyType.MEDIUM) and self.frames:
+            self.frame_timer += 1
+            if self.frame_timer >= self.frame_speed:
+                self.frame_timer = 0
+                self.frame_index = (self.frame_index + 1) % len(self.frames)
+                self.current_sprite = self.frames[self.frame_index]
+
         # calculating direction to the player
         vx = self.x - player_x
         vy = self.y - player_y
@@ -114,6 +173,15 @@ class Enemy:
 
         vx /= normalize_factor
         vy /= normalize_factor
+
+        # Track facing direction based on horizontal movement
+        # vx > 0 means enemy is to the right of player, so moving left (towards player) - normal sprite
+        # vx < 0 means enemy is to the left of player, so moving right (towards player) - flip sprite
+        if vx > 0:
+            self.facing_left = False  # Moving left - normal sprite
+        elif vx < 0:
+            self.facing_left = True  # Moving right - flip sprite
+
         # updating position
         new_x = self.x - vx * self.movement
         new_y = self.y - vy * self.movement
