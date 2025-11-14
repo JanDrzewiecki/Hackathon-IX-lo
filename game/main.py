@@ -13,7 +13,10 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Vampire_Survivor")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Calibri.ttf", 30)
-
+screen_width = 800
+screen_height = 800
+fps = 60
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_WIDTH))
 player = Player()
 enemies = []
 level = 1
