@@ -5,11 +5,14 @@ from settings import*
 from enemy import*
 
 class EnemySpawner:
-    def __init__(self, level, room=None):
+    def __init__(self, level, room=None, enemy_hearts=None):
         self.level = level
         self.cooldown_limit = FPS / 2
         self.cooldown = 0
         self.room = room
+        # Default hearts for spawned enemies; can be customized per spawner
+        from enemy import Enemy as _E
+        self.enemy_hearts = enemy_hearts if enemy_hearts is not None else _E.DEFAULT_HEARTS
 
     def update_level(self, level):
         self.level = level
@@ -43,7 +46,7 @@ class EnemySpawner:
                     y = random.randint(0, SCREEN_HEIGHT)
                     x = SCREEN_WIDTH - ENEMY_SIZE
 
-            enemy = Enemy(x, y, self.room)
+            enemy = Enemy(x, y, self.room, max_hearts=self.enemy_hearts)
             enemies.append(enemy)
 
 

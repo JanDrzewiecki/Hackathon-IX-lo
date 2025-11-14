@@ -125,8 +125,9 @@ while running:
     for bullet in bullets[:]:
         for enemy in enemies[:]:
             if bullet.hit_box.collide(enemy.hit_box):
-                enemy.hp -= bullet.ad
-                if enemy.hp <= 0:
+                # Enemy loses exactly one heart per hit (no halves)
+                dead = enemy.take_hit()
+                if dead:
                     enemies.remove(enemy)
                     player.points += 1
                 notifications.append(Notification(bullet.x, bullet.y, 10, "gold", font))
