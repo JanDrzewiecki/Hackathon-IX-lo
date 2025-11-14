@@ -28,30 +28,76 @@ except:
         room_background = None
         print("Warning: Could not load room-1.png")
 
-# Create room manager with corridors
-room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
 
-# Create player in center of game area
-player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
-player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
+def start_new_game():
+    """Reset all game state to start a fresh run."""
+    global room_manager, player, enemies, level, enemy_spawner, notifications
+    global bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud
 
-player = Player(player_start_x, player_start_y)
+    # Create room manager with corridors
+    room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
 
-enemies = []
-level = 1
-enemy_spawner = EnemySpawner(level, room_manager)
-notifications = []
-bullets = []
-bullets_cooldown = 0
-damage_cooldown = 0
+    # Create player in center of game area
+    player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
+    player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
+    player = Player(player_start_x, player_start_y)
 
-# Track visited rooms
-visited_rooms = {0}  # Start room is visited
+    enemies = []
+    level = 1
+    enemy_spawner = EnemySpawner(level, room_manager)
+    notifications = []
+    bullets = []
+    bullets_cooldown = 0
+    damage_cooldown = 0
 
-# Track cleared rooms (where all enemies were killed)
-cleared_rooms = set()
+    # Track visited and cleared rooms
+    visited_rooms = {0}
+    cleared_rooms = set()
 
-hud = HeartsHUD()
+    hud = HeartsHUD()
+
+
+def show_game_over(screen, font):
+    """Display Game Over screen with a PLAY AGAIN button.
+    Returns 'restart' if the button was clicked, or 'quit' if ESC/quit is pressed.
+    """
+    button_rect = pygame.Rect(0, 0, 260, 70)
+    button_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 10)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                return 'quit'
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                return 'quit'
+            if event.type == MOUSEBUTTONDOWN and event.button == 1:
+                if button_rect.collidepoint(event.pos):
+                    return 'restart'
+
+        screen.fill((0, 0, 0))
+
+        go_text = font.render("GAME OVER", True, (255, 0, 0))
+        screen.blit(go_text, (SCREEN_WIDTH // 2 - go_text.get_width() // 2, SCREEN_HEIGHT // 2 - 120))
+
+        info_text = font.render("Press ESC to quit", True, (200, 200, 200))
+        screen.blit(info_text, (SCREEN_WIDTH // 2 - info_text.get_width() // 2, SCREEN_HEIGHT // 2 - 70))
+
+        # Hover effect color
+        hovered = button_rect.collidepoint(pygame.mouse.get_pos())
+        btn_color = (80, 180, 80) if hovered else (60, 140, 60)
+        pygame.draw.rect(screen, btn_color, button_rect, border_radius=12)
+        pygame.draw.rect(screen, (255, 255, 255), button_rect, width=2, border_radius=12)
+
+        btn_text = font.render("PLAY AGAIN", True, (255, 255, 255))
+        screen.blit(btn_text, (button_rect.centerx - btn_text.get_width() // 2,
+                               button_rect.centery - btn_text.get_height() // 2))
+
+        pygame.display.update()
+        clock.tick(60)
+
+
+# Initial game state
+start_new_game()
 
 running = True
 
@@ -75,10 +121,6 @@ while running:
             running = False
     keys = pygame.key.get_pressed()
 
-    # DEBUG: Print player position when keys are pressed
-    if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_a] or keys[pygame.K_d]:
-        old_x, old_y = player.x, player.y
-        print(f"Before move: ({old_x:.1f}, {old_y:.1f})", end=" -> ")
 
     # SHOOTING
     mouse_buttons = pygame.mouse.get_pressed()
@@ -175,23 +217,13 @@ while running:
     player.draw(screen)
 
     if player.hp <= 0:
-
-        screen.fill((0, 0, 0))
-        go_text = font.render("GAME OVER", True, (255, 0, 0))
-        info_text = font.render("Press ESC or close window", True, (200, 200, 200))
-        screen.blit(go_text, (SCREEN_WIDTH//2 - go_text.get_width()//2, SCREEN_HEIGHT//2 - 40))
-        screen.blit(info_text, (SCREEN_WIDTH//2 - info_text.get_width()//2, SCREEN_HEIGHT//2 + 10))
-        pygame.display.update()
-
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    waiting = False
-                elif event.type == KEYDOWN and event.key == K_ESCAPE:
-                    waiting = False
-            clock.tick(30)
-        running = False
+        # Show Game Over and decide next action
+        action = show_game_over(screen, font)
+        if action == 'quit':
+            break
+        elif action == 'restart':
+            start_new_game()
+            continue
 
     pygame.display.update()
 
