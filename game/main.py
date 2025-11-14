@@ -50,13 +50,35 @@ while running:
         if event.type == KEYDOWN:
             if event.key == K_ESCAPE:
                 running = False
-
+    keys = pygame.key.get_pressed()
     mouse_buttons = pygame.mouse.get_pressed()
     if mouse_buttons[0]:
         x, y = pygame.mouse.get_pos()
         if bullets_cooldown <= 0:
             bullets.append(Bullet(player,  x , y))
             bullets_cooldown = FPS / 3
+    old_x, old_y = player.x, player.y
+        # Movement with corridor support
+    if keys[pygame.K_a]:
+        player.x = player.x - player.movement
+    if keys[pygame.K_d]:
+        player.x = player.x + player.movement
+    if keys[pygame.K_w]:
+        player.y = player.y - player.movement
+    if keys[pygame.K_s]:
+        player.y = player.y + player.movement
+
+    # Check for corridor transition (teleportation to new room)
+    should_transition, new_x, new_y, exit_direction = room_manager.check_corridor_transition(
+        player.x, player.y, PLAYER_SIZE)
+
+    if should_transition:
+        # Teleport player to opposite corridor
+        player.x, player.y = new_x, new_y
+        # Clear enemies when changing rooms
+        enemies.clear()
+        # Optional: Add notification
+        notifications.append(Notification(player.x, player.y, "New Room!", "cyan", font))
 
     enemy_spawner.update(enemies)
 
