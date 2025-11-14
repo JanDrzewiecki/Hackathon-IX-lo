@@ -89,6 +89,10 @@ class RoomManager:
 
         # Generate 6 rooms with random connections
         self.rooms = self._generate_6_rooms()
+
+        # Renumber rooms by distance from room 0
+        self._renumber_rooms_by_distance()
+
         self.current_room_id = 0
         self.current_room = self.rooms[0]
 
@@ -134,10 +138,67 @@ class RoomManager:
 
         return rooms
 
+    def _renumber_rooms_by_distance(self):
+        """Renumber rooms based on distance from room 0 (BFS)"""
+        # BFS to find distances
+        from collections import deque
+
+        # Find distance of each room from room 0
+        distances = {}
+        queue = deque([(0, 0)])  # (room_id, distance)
+        visited = {0}
+        distances[0] = 0
+
+        while queue:
+            current_id, dist = queue.popleft()
+
+            # Check all connections
+            for direction, connected_id in self.rooms[current_id].connections.items():
+                if connected_id is not None and connected_id not in visited:
+                    visited.add(connected_id)
+                    distances[connected_id] = dist + 1
+                    queue.append((connected_id, dist + 1))
+
+        # Sort rooms by distance, then by original ID for stability
+        sorted_rooms = sorted(distances.keys(), key=lambda x: (distances[x], x))
+
+        # Create mapping from old ID to new ID
+        old_to_new = {}
+        for new_id, old_id in enumerate(sorted_rooms):
+            old_to_new[old_id] = new_id
+
+        # Create new rooms dict with new IDs
+        new_rooms = {}
+        for old_id, new_id in old_to_new.items():
+            new_room = RoomNode(new_id)
+            # Update connections with new IDs
+            for direction, connected_old_id in self.rooms[old_id].connections.items():
+                if connected_old_id is not None:
+                    new_room.connections[direction] = old_to_new[connected_old_id]
+            new_rooms[new_id] = new_room
+
+        self.rooms = new_rooms
+
     def _print_layout(self):
-        """Print the room layout as a tree with arrows"""
+        """Print the room layout as a tree with arrows and distances"""
+        from collections import deque
+
+        # Calculate distances again for display
+        distances = {}
+        queue = deque([(0, 0)])
+        visited = {0}
+        distances[0] = 0
+
+        while queue:
+            current_id, dist = queue.popleft()
+            for direction, connected_id in self.rooms[current_id].connections.items():
+                if connected_id is not None and connected_id not in visited:
+                    visited.add(connected_id)
+                    distances[connected_id] = dist + 1
+                    queue.append((connected_id, dist + 1))
+
         print("\n" + "="*60)
-        print("ROOM LAYOUT - Generated at game start")
+        print("ROOM LAYOUT - Numbered by distance from Room 0")
         print("="*60)
 
         for room_id in range(6):
@@ -148,7 +209,8 @@ class RoomManager:
                     connections.append(f"{direction}→{target}")
 
             conn_str = ", ".join(connections) if connections else "No connections"
-            print(f"  Room [{room_id}]: {conn_str}")
+            dist_str = f"(distance: {distances.get(room_id, '?')})"
+            print(f"  Room [{room_id}] {dist_str}: {conn_str}")
 
         print("="*60 + "\n")
 

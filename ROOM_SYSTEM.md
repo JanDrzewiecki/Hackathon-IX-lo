@@ -17,21 +17,21 @@ Przy starcie gry w konsoli zobaczysz:
 
 ```
 ============================================================
-ROOM LAYOUT - Generated at game start
+ROOM LAYOUT - Numbered by distance from Room 0
 ============================================================
-  Room [0]: top→3, right→1
-  Room [1]: left→0, bottom→4
-  Room [2]: top→5
-  Room [3]: bottom→0, left→4
-  Room [4]: top→1, right→3, bottom→5
-  Room [5]: top→2, bottom→4
+  Room [0] (distance: 0): top→1, right→2
+  Room [1] (distance: 1): bottom→0, right→3
+  Room [2] (distance: 1): left→0, bottom→4
+  Room [3] (distance: 2): left→1, bottom→5
+  Room [4] (distance: 2): top→2, right→5
+  Room [5] (distance: 3): top→3, left→4
 ============================================================
 ```
 
 To oznacza:
-- **Room [0]** ma korytarze: w górę do pokoju 3, w prawo do pokoju 1
-- **Room [1]** ma korytarze: w lewo do pokoju 0, w dół do pokoju 4
-- itd.
+- **Room [0]** (START, odl. 0) - ma korytarze: w górę do pokoju 1, w prawo do pokoju 2
+- **Room [1]** (odl. 1) - ma korytarze: w dół do pokoju 0, w prawo do pokoju 3
+- **Room [5]** (NAJDALSZY, odl. 3) - ma korytarze: w górę do pokoju 3, w lewo do pokoju 4
 
 ### Przykład wizualizacji
 
