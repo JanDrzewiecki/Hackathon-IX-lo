@@ -7,6 +7,7 @@ class Player:
         self.x = player_start_x
         self.y = player_start_y
         self.hp = 60
+        self.max_hp = self.hp
         self.ad = 20
         self.movement = 8
         self.points = 0

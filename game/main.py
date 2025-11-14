@@ -34,12 +34,9 @@ player_start_y = GAME_AREA_Y + GAME_AREA_HEIGHT // 2 - PLAYER_SIZE // 2
 player = Player(player_start_x, player_start_y)
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Vampire_Survivor")
-clock = pygame.time.Clock()
-font = pygame.font.SysFont("Calibri.ttf", 30)
 screen_width = 800
 screen_height = 800
 fps = 60
-player = Player()
 enemies = []
 level = 1
 enemy_spawner = EnemySpawner(level, room_manager)
@@ -51,7 +48,7 @@ damage_cooldown = 0
 
 hud = HeartsHUD()
 
-
+pozdro = "elo"
 running = True
 
 while running:
