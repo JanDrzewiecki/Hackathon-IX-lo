@@ -18,6 +18,28 @@ font = pygame.font.SysFont("Calibri.ttf", 30)
 
 # Create room manager with corridors
 room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
+
+# Display room layout
+print("\n" + "="*50)
+print("ROOM LAYOUT (Fixed - never changes during game):")
+print("="*50)
+print("      [2]")
+print("       |")
+print("  [3]-[0]-[1]")
+print("       |")
+print("      [4]")
+print("       |")
+print("      [5]")
+print()
+for room_id in range(6):
+    room = room_manager.rooms[room_id]
+    connections = []
+    for direction, connected_to in room.connections.items():
+        if connected_to is not None:
+            connections.append(f"{direction}→{connected_to}")
+    print(f"  Room {room_id}: {', '.join(connections) if connections else 'isolated'}")
+print("="*50 + "\n")
+
 GAME_AREA_X = room_manager.room_x
 GAME_AREA_Y = room_manager.room_y
 GAME_AREA_WIDTH = room_manager.room_width
@@ -33,6 +55,9 @@ enemy_spawner = EnemySpawner(level, room_manager)
 notifications = []
 bullets = []
 bullets_cooldown = 0
+
+# Track visited rooms for minimap
+visited_rooms = {0}  # Start room is visited
 
 
 running = True
@@ -76,10 +101,12 @@ while running:
     if should_transition:
         # Teleport player to opposite corridor
         player.x, player.y = new_x, new_y
+        # Mark new room as visited
+        visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
         enemies.clear()
-        # Optional: Add notification
-        notifications.append(Notification(player.x, player.y, "New Room!", "cyan", font))
+        # Add notification showing room number
+        notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
 
     mouse_buttons = pygame.mouse.get_pressed()
     if mouse_buttons[0]:
@@ -115,6 +142,15 @@ while running:
     player.update()
     player.draw(screen)
 
+    # Display current room number
+    room_text = font.render(f"Room: {room_manager.current_room_id}", True, (255, 255, 255))
+    screen.blit(room_text, (20, 20))
+
+    # Draw minimap (simple version - just show visited room numbers)
+    minimap_y = 60
+    minimap_text = font.render(f"Visited: {sorted(visited_rooms)}", True, (200, 200, 200))
+    screen.blit(minimap_text, (20, minimap_y))
+
     for bullet in bullets[:]:
         for enemy in enemies[:]:
             if bullet.hit_box.collide(enemy.hit_box):
@@ -133,7 +169,6 @@ while running:
 
 
     pygame.display.update()
-
 
 
 pygame.quit()

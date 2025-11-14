@@ -3,6 +3,19 @@ import random
 from settings import *
 
 
+class RoomNode:
+    """Represents a single room in the game world"""
+    def __init__(self, room_id, connections):
+        """
+        Args:
+            room_id: Unique identifier for this room (0-5)
+            connections: Dict mapping direction ('top', 'bottom', 'left', 'right') to connected room_id
+                        None if no connection in that direction
+        """
+        self.room_id = room_id
+        self.connections = connections  # {'top': room_id or None, 'bottom': ..., 'left': ..., 'right': ...}
+
+
 class Corridor:
     """Represents a corridor connecting to the edge of the screen"""
     def __init__(self, position, room_x, room_y, room_width, room_height, screen_width, screen_height):
@@ -72,7 +85,7 @@ class RoomManager:
         self.screen_height = screen_height
         self.margin_pixels = margin_pixels
 
-        # Current room
+        # Current room dimensions
         self.room_width = screen_width - (2 * margin_pixels)
         self.room_height = screen_height - (2 * margin_pixels)
         self.room_x = margin_pixels
@@ -83,19 +96,7 @@ class RoomManager:
         self.border_color = (255, 255, 255)
         self.border_width = 3
 
-        # Create corridors
-        self.corridors = {
-            'top': Corridor('top', self.room_x, self.room_y, self.room_width, self.room_height,
-                          screen_width, screen_height),
-            'bottom': Corridor('bottom', self.room_x, self.room_y, self.room_width, self.room_height,
-                             screen_width, screen_height),
-            'left': Corridor('left', self.room_x, self.room_y, self.room_width, self.room_height,
-                           screen_width, screen_height),
-            'right': Corridor('right', self.room_x, self.room_y, self.room_width, self.room_height,
-                            screen_width, screen_height)
-        }
-
-        # Opposite corridors for teleportation
+        # Opposite corridors for teleportation (needed by _generate_random_rooms)
         self.opposite = {
             'top': 'bottom',
             'bottom': 'top',
@@ -103,9 +104,55 @@ class RoomManager:
             'right': 'left'
         }
 
+        # Create fixed room layout (same every time)
+        # This is a pre-generated layout using seed 42
+        self.rooms = self._create_fixed_layout()
+
+        self.current_room_id = 0  # Start in room 0
+        self.current_room = self.rooms[self.current_room_id]
+
+        # Build corridors for current room
+        self._build_corridors()
+
+    def _create_fixed_layout(self):
+        """Create a fixed room layout that never changes"""
+        rooms = {}
+
+        # Manually define a fixed layout
+        # Layout structure:
+        #       [2]
+        #        |
+        #   [3]-[0]-[1]
+        #        |
+        #       [4]
+        #        |
+        #       [5]
+
+        rooms[0] = RoomNode(0, {'top': 2, 'bottom': 4, 'left': 3, 'right': 1})
+        rooms[1] = RoomNode(1, {'top': None, 'bottom': None, 'left': 0, 'right': None})
+        rooms[2] = RoomNode(2, {'top': None, 'bottom': 0, 'left': None, 'right': None})
+        rooms[3] = RoomNode(3, {'top': None, 'bottom': None, 'left': None, 'right': 0})
+        rooms[4] = RoomNode(4, {'top': 0, 'bottom': 5, 'left': None, 'right': None})
+        rooms[5] = RoomNode(5, {'top': 4, 'bottom': None, 'left': None, 'right': None})
+
+        return rooms
+
+
+    def _build_corridors(self):
+        """Build corridors only for active connections in current room"""
+        self.corridors = {}
+
+        for direction, connected_room_id in self.current_room.connections.items():
+            if connected_room_id is not None:  # Only create corridor if there's a connection
+                self.corridors[direction] = Corridor(
+                    direction, self.room_x, self.room_y,
+                    self.room_width, self.room_height,
+                    self.screen_width, self.screen_height
+                )
+
     def draw(self, screen):
-        """Draw the room and corridors as one seamless area"""
-        # Draw all corridors first (same color as room, no borders)
+        """Draw the room and only active corridors"""
+        # Draw all active corridors first (same color as room, no borders)
         for corridor in self.corridors.values():
             corridor.draw(screen, self.bg_color)
 
@@ -113,57 +160,90 @@ class RoomManager:
         pygame.draw.rect(screen, self.bg_color,
                         (self.room_x, self.room_y, self.room_width, self.room_height))
 
-        # Draw border ONLY around the parts of room that don't connect to corridors
-        # This creates the effect of corridors being part of the room
+        # Draw borders only where there are NO corridors
         border_thickness = self.border_width
 
-        # Top border (with gap for top corridor)
-        top_corridor = self.corridors['top']
-        pygame.draw.line(screen, self.border_color,
-                        (self.room_x, self.room_y),
-                        (top_corridor.x, self.room_y), border_thickness)
-        pygame.draw.line(screen, self.border_color,
-                        (top_corridor.x + top_corridor.corridor_width, self.room_y),
-                        (self.room_x + self.room_width, self.room_y), border_thickness)
+        # Top border (with gap if there's a top corridor)
+        if 'top' in self.corridors:
+            top_corridor = self.corridors['top']
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x, self.room_y),
+                            (top_corridor.x, self.room_y), border_thickness)
+            pygame.draw.line(screen, self.border_color,
+                            (top_corridor.x + top_corridor.corridor_width, self.room_y),
+                            (self.room_x + self.room_width, self.room_y), border_thickness)
+        else:
+            # No top corridor, draw full top border
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x, self.room_y),
+                            (self.room_x + self.room_width, self.room_y), border_thickness)
 
-        # Bottom border (with gap for bottom corridor)
-        bottom_corridor = self.corridors['bottom']
-        pygame.draw.line(screen, self.border_color,
-                        (self.room_x, self.room_y + self.room_height),
-                        (bottom_corridor.x, self.room_y + self.room_height), border_thickness)
-        pygame.draw.line(screen, self.border_color,
-                        (bottom_corridor.x + bottom_corridor.corridor_width, self.room_y + self.room_height),
-                        (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
+        # Bottom border (with gap if there's a bottom corridor)
+        if 'bottom' in self.corridors:
+            bottom_corridor = self.corridors['bottom']
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x, self.room_y + self.room_height),
+                            (bottom_corridor.x, self.room_y + self.room_height), border_thickness)
+            pygame.draw.line(screen, self.border_color,
+                            (bottom_corridor.x + bottom_corridor.corridor_width, self.room_y + self.room_height),
+                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
+        else:
+            # No bottom corridor, draw full bottom border
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x, self.room_y + self.room_height),
+                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
 
-        # Left border (with gap for left corridor)
-        left_corridor = self.corridors['left']
-        pygame.draw.line(screen, self.border_color,
-                        (self.room_x, self.room_y),
-                        (self.room_x, left_corridor.y), border_thickness)
-        pygame.draw.line(screen, self.border_color,
-                        (self.room_x, left_corridor.y + left_corridor.corridor_height),
-                        (self.room_x, self.room_y + self.room_height), border_thickness)
+        # Left border (with gap if there's a left corridor)
+        if 'left' in self.corridors:
+            left_corridor = self.corridors['left']
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x, self.room_y),
+                            (self.room_x, left_corridor.y), border_thickness)
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x, left_corridor.y + left_corridor.corridor_height),
+                            (self.room_x, self.room_y + self.room_height), border_thickness)
+        else:
+            # No left corridor, draw full left border
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x, self.room_y),
+                            (self.room_x, self.room_y + self.room_height), border_thickness)
 
-        # Right border (with gap for right corridor)
-        right_corridor = self.corridors['right']
-        pygame.draw.line(screen, self.border_color,
-                        (self.room_x + self.room_width, self.room_y),
-                        (self.room_x + self.room_width, right_corridor.y), border_thickness)
-        pygame.draw.line(screen, self.border_color,
-                        (self.room_x + self.room_width, right_corridor.y + right_corridor.corridor_height),
-                        (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
+        # Right border (with gap if there's a right corridor)
+        if 'right' in self.corridors:
+            right_corridor = self.corridors['right']
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x + self.room_width, self.room_y),
+                            (self.room_x + self.room_width, right_corridor.y), border_thickness)
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x + self.room_width, right_corridor.y + right_corridor.corridor_height),
+                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
+        else:
+            # No right corridor, draw full right border
+            pygame.draw.line(screen, self.border_color,
+                            (self.room_x + self.room_width, self.room_y),
+                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
 
     def check_corridor_transition(self, player_x, player_y, player_size):
         """
         Check if player should transition to a new room
-        Returns: (should_transition, new_x, new_y) or (False, None, None)
+        Returns: (should_transition, new_x, new_y, exit_direction, new_room_id)
         """
         for direction, corridor in self.corridors.items():
             if corridor.reached_edge(player_x, player_y, player_size,
                                     self.screen_width, self.screen_height):
-                # Teleport to opposite side
-                new_x, new_y = self._get_spawn_position(self.opposite[direction], player_size)
-                return True, new_x, new_y, direction
+                # Get the room we're transitioning to
+                new_room_id = self.current_room.connections[direction]
+                if new_room_id is not None:
+                    # Calculate spawn position in new room (opposite side)
+                    opposite_direction = self.opposite[direction]
+                    new_x, new_y = self._get_spawn_position(opposite_direction, player_size)
+
+                    # Switch to new room
+                    self.current_room_id = new_room_id
+                    self.current_room = self.rooms[new_room_id]
+                    self._build_corridors()  # Rebuild corridors for new room
+
+                    return True, new_x, new_y, direction
 
         return False, None, None, None
 
