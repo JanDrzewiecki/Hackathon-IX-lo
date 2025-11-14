@@ -20,7 +20,7 @@ class Player:
         self.frame_index = 0
         self.frame_timer = 0
         self.frame_speed = 6
-        self.frames = self.load_sheet("uranek.png",URANEK_FRAME_WIDTH,URANEK_FRAME_HEIGHT)
+        self.frames = self.load_sheet("uranek.png", URANEK_FRAME_WIDTH, URANEK_FRAME_HEIGHT)
         self.current_sprite = self.frames[0]
 
     def load_sheet(self, path, frame_width, frame_height):
