@@ -32,11 +32,6 @@ GAME_AREA_HEIGHT = room_manager.room_height
 player_start_x = GAME_AREA_X + GAME_AREA_WIDTH // 2 - PLAYER_SIZE // 2
 player_start_y = GAME_AREA_Y + GAME_AREA_HEIGHT // 2 - PLAYER_SIZE // 2
 player = Player(player_start_x, player_start_y)
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Vampire_Survivor")
-screen_width = 800
-screen_height = 800
-fps = 60
 enemies = []
 level = 1
 enemy_spawner = EnemySpawner(level, room_manager)
@@ -45,6 +40,8 @@ bullets = []
 bullets_cooldown = 0
 damage_cooldown = 0
 
+# Track visited rooms
+visited_rooms = {0}  # Start room is visited
 
 hud = HeartsHUD()
 
@@ -64,6 +61,7 @@ while running:
         if event.type == KEYDOWN:
             if event.key == K_ESCAPE:
                 running = False
+
     keys = pygame.key.get_pressed()
     mouse_buttons = pygame.mouse.get_pressed()
     if mouse_buttons[0]:
@@ -82,6 +80,9 @@ while running:
     if keys[pygame.K_s]:
         player.y = player.y + player.movement
 
+    # Clamp position to room or corridor
+    player.x, player.y = room_manager.clamp_position(player.x, player.y, PLAYER_SIZE)
+
     # Check for corridor transition (teleportation to new room)
     should_transition, new_x, new_y, exit_direction = room_manager.check_corridor_transition(
         player.x, player.y, PLAYER_SIZE)
@@ -89,12 +90,26 @@ while running:
     if should_transition:
         # Teleport player to opposite corridor
         player.x, player.y = new_x, new_y
+        # Mark new room as visited
+        visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
         enemies.clear()
-        # Optional: Add notification
-        notifications.append(Notification(player.x, player.y, "New Room!", "cyan", font))
+        # Add notification showing room number
+        notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
+
+    mouse_buttons = pygame.mouse.get_pressed()
+    if mouse_buttons[0]:
+        x, y = pygame.mouse.get_pos()
+        if bullets_cooldown <= 0:
+            bullets.append(Bullet(player,  x , y))
+            bullets_cooldown = FPS / 3
+
+
+
+
 
     enemy_spawner.update(enemies)
+
 
     for enemy in enemies:
         enemy.update(player.x, player.y)
@@ -117,10 +132,15 @@ while running:
         if bullet.y > SCREEN_HEIGHT or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.x < 0:
             bullets.remove(bullet)
 
-    player.update(pygame.key.get_pressed())
+    player.update()
     player.draw(screen)
 
-    hud.draw(screen, player)
+    # Display current room and visited rooms
+    room_text = font.render(f"Room: {room_manager.current_room_id}", True, (255, 255, 255))
+    screen.blit(room_text, (20, 20))
+
+    visited_text = font.render(f"Visited: {sorted(visited_rooms)}", True, (200, 200, 200))
+    screen.blit(visited_text, (20, 60))
 
     for bullet in bullets[:]:
         for enemy in enemies[:]:
@@ -151,7 +171,7 @@ while running:
                     waiting = False
             clock.tick(30)
         running = False
-    
+
     pygame.display.update()
 
 
