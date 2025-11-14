@@ -7,7 +7,7 @@ class Enemy:
         self.x = x
         self.y = y
         self.hp = 50
-        self.ad = 20
+        self.ad = 10
         self.movement = 2
         self.hit_box = HitBox(self.x, self.y, PLAYER_SIZE//2 - 2, PLAYER_SIZE//2)
         self.room = room

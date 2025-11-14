@@ -1,14 +1,13 @@
 import pygame
 from settings import *
-from hit_box import HitBox
-
+from hit_box import *
 
 class Player:
     def __init__(self, player_start_x, player_start_y):
         self.x = player_start_x
         self.y = player_start_y
-
-        self.hp = 200
+        self.hp = 60
+        self.max_hp = self.hp
         self.ad = 20
         self.movement = 5
         self.points = 0
