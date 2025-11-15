@@ -1,8 +1,8 @@
 import pygame
 import random
-from settings import *
-from hit_box import*
-from enemy_type import EnemyType
+from src.core.constants import *
+from src.utils.hitbox import*
+from src.entities.enemy_type import EnemyType
 
 
 class RoomNode:

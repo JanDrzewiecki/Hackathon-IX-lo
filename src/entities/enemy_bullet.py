@@ -1,7 +1,7 @@
 """Enemy bullet class for boss attacks"""
 import pygame
-from hit_box import HitBox
-from settings import *
+from src.utils.hitbox import HitBox
+from src.core.constants import *
 import math
 
 

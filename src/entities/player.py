@@ -1,6 +1,8 @@
 import pygame
-from settings import *
-from hit_box import *
+from src.core.constants import (URANEK_FRAME_WIDTH, URANEK_FRAME_HEIGHT, 
+                                  URANEK_SIZE, URANEK_SCALE)
+from src.utils.hitbox import HitBox
+from src.managers.resource_manager import resource_manager
 
 class Player:
     def __init__(self, player_start_x, player_start_y):
@@ -13,7 +15,7 @@ class Player:
         self.points = 0
 
         # Hitbox - use scaled size for proper collision detection
-        scaled_width = int(URANEK_FRAME_WIDTH * skale)
+        scaled_width = int(URANEK_FRAME_WIDTH * URANEK_SCALE)
         self.hit_box = HitBox(self.x, self.y, scaled_width // 2 - 5, scaled_width // 2)
 
         # Animation
@@ -25,23 +27,9 @@ class Player:
         self.facing_left = False  # Track if player is facing left
 
     def load_sheet(self, path, frame_width, frame_height):
-        try:
-            sheet = pygame.image.load(f"game/{path}").convert_alpha()
-        except:
-            sheet = pygame.image.load(path).convert_alpha()
-        sheet_width, sheet_height = sheet.get_size()
-
-        cols = sheet_width // frame_width
-        frames = []
-
-        for col in range(cols):
-            rect = pygame.Rect(col * frame_width, 0, frame_width, frame_height)
-            frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
-            frame.blit(sheet, (0, 0), rect)
-            frame = pygame.transform.scale(frame, URANEK_SIZE)
-            frames.append(frame)
-
-        return frames
+        # Użyj ResourceManager do ładowania sprite'ów
+        frames = resource_manager.load_spritesheet(path, frame_width, frame_height, scale=URANEK_SIZE)
+        return frames if frames else []
 
     def update(self, keys, room_manager, visited_rooms=None, enemies=None, boss_killed=False):
         # Save previous position
@@ -89,7 +77,6 @@ class Player:
 
         if collision:
             # Revert movement on collision
-            print(f"COLLISION! Reverting from ({self.x}, {self.y}) to ({old_x}, {old_y})")
             self.x = old_x
             self.y = old_y
             self.hit_box.update_position(old_x, old_y)

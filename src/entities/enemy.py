@@ -1,8 +1,10 @@
 import pygame
-from settings import *
-from hit_box import *
-from enemy_type import EnemyType, EnemyTypeConfig
-from hud import load_heart_images
+from src.core.constants import FPS
+from src.utils.hitbox import HitBox
+from src.entities.enemy_type import EnemyType, EnemyTypeConfig
+from src.ui.hud import load_heart_images
+from src.managers.resource_manager import resource_manager
+from src.managers.resource_manager import resource_manager
 
 
 class Enemy:
@@ -117,26 +119,10 @@ class Enemy:
 
     def load_sheet(self, path, frame_width, frame_height):
         """Load sprite sheet and split it into individual frames"""
-        try:
-            try:
-                sheet = pygame.image.load(f"game/{path}").convert_alpha()
-            except:
-                sheet = pygame.image.load(path).convert_alpha()
-            sheet_width, sheet_height = sheet.get_size()
-
-            cols = sheet_width // frame_width
-            frames = []
-
-            for col in range(cols):
-                rect = pygame.Rect(col * frame_width, 0, frame_width, frame_height)
-                frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
-                frame.blit(sheet, (0, 0), rect)
-                frames.append(frame)
-
-            return frames
-        except Exception as e:
-            print(f"Error loading enemy sprite {path}: {e}")
-            return []
+        frames = resource_manager.load_spritesheet(path, frame_width, frame_height)
+        if not frames:
+            print(f"Error loading enemy sprite {path}")
+        return frames
 
     def set_room(self, room):
         """Set the room boundaries for this enemy."""

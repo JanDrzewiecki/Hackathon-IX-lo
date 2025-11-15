@@ -2,8 +2,8 @@
 Final Room Manager - Single room with final boss for level 4 (after killing 3 bosses)
 """
 import pygame
-from enemy_type import EnemyType
-from settings import *
+from src.entities.enemy_type import EnemyType
+from src.core.constants import *
 
 
 class FinalRoomNode:

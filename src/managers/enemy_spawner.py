@@ -1,8 +1,8 @@
 import random
 import pygame
-from settings import *
-from enemy import *
-from enemy_type import EnemyType, EnemyTypeConfig
+from src.core.constants import *
+from src.entities.enemy import *
+from src.entities.enemy_type import EnemyType, EnemyTypeConfig
 
 
 class EnemySpawner:

@@ -1,5 +1,5 @@
 import pygame
-from settings import *
+from src.core.constants import *
 
 
 class Room:

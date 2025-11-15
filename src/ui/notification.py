@@ -1,6 +1,6 @@
 import pygame
 import math
-from settings import*
+from src.core.constants import*
 
 class Notification:
 

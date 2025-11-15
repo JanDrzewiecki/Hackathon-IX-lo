@@ -1,16 +1,27 @@
 import os
 import pygame
+from src.managers.resource_manager import resource_manager
 
 
-def load_heart_images(heart_height: int, image_path: str = './heart2.png'):
-    try:
-        img = pygame.image.load(image_path).convert_alpha()
-    except Exception:
-        try:
-            alt = os.path.join(os.path.dirname(__file__), os.path.basename(image_path))
-            img = pygame.image.load(alt).convert_alpha()
-        except Exception:
-            return None, None
+def load_heart_images(heart_height: int, image_path: str = 'heart2.png'):
+    """
+    Load and scale heart images for the HUD using ResourceManager.
+    
+    Args:
+        heart_height: Desired height of the heart image
+        image_path: Filename of the heart image (will be loaded from game/ directory)
+        
+    Returns:
+        Tuple of (full_heart, dimmed_heart) surfaces, or (None, None) if loading fails
+    """
+    # Use ResourceManager for consistent asset loading
+    img = resource_manager.load_image(image_path, convert_alpha=True)
+    
+    
+    if img is None:
+        print(f"⚠️  Could not load heart image: {image_path}")
+        return None, None
+    
     raw_w, raw_h = img.get_size()
     if raw_h <= 0:
         return None, None
@@ -36,7 +47,17 @@ def _ease_out_back(t: float) -> float:
 
 class HeartsHUD:
     def __init__(self, hp_per_heart: int = 20, heart_size: int = 72, spacing: int = 1,
-                 pos=(10, 10), image_path: str = './heart2.png'):
+                 pos=(10, 10), image_path: str = 'heart2.png'):
+        """
+        Initialize the Hearts HUD display.
+        
+        Args:
+            hp_per_heart: HP value per heart slot
+            heart_size: Size of each heart icon in pixels
+            spacing: Spacing between hearts
+            pos: Position tuple (x, y) for the HUD
+            image_path: Filename of the heart image (loaded from game/ directory)
+        """
         self.hp_per_heart = hp_per_heart
         self.heart_size = heart_size
         self.spacing = spacing
