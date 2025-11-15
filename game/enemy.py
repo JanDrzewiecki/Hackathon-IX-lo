@@ -36,18 +36,32 @@ class Enemy:
         self.current_sprite = None
         self.facing_left = False  # Track if enemy is facing left
 
-        # Load sprite sheet based on enemy type
+        # Load sprite sheet based on enemy type and level
         if self.enemy_type == EnemyType.WEAK:
-            self.frames = self.load_sheet("enemy1.png", 100, 100)
+            if level == 2:
+                self.frames = self.load_sheet("enemy4.png", 100, 100)
+            elif level == 3:
+                self.frames = self.load_sheet("enemy7.png", 100, 100)
+            else:  # level 1
+                self.frames = self.load_sheet("enemy1.png", 100, 100)
             if self.frames:
                 self.current_sprite = self.frames[0]
         elif self.enemy_type == EnemyType.MEDIUM:
-            self.frames = self.load_sheet("enemy2.png", 100, 100)
+            if level == 2:
+                self.frames = self.load_sheet("enemy5.png", 100, 100)
+            elif level == 3:
+                self.frames = self.load_sheet("enemy8.png", 100, 100)
+            else:  # level 1
+                self.frames = self.load_sheet("enemy2.png", 100, 100)
             if self.frames:
                 self.current_sprite = self.frames[0]
         elif self.enemy_type == EnemyType.STRONG:
-            # Use fireball.png or uranek.png for strong enemy (100x100)
-            self.frames = self.load_sheet("enemy3.png", 100, 100)
+            if level == 2:
+                self.frames = self.load_sheet("enemy6.png", 100, 100)
+            elif level == 3:
+                self.frames = self.load_sheet("enemy9.png", 100, 100)
+            else:  # level 1
+                self.frames = self.load_sheet("enemy3.png", 100, 100)
             if self.frames:
                 self.current_sprite = self.frames[0]
         elif self.enemy_type == EnemyType.BOSS:
@@ -220,10 +234,12 @@ class Enemy:
         # Track facing direction based on horizontal movement
         # vx > 0 means enemy is to the right of player, so moving left (towards player) - face right
         # vx < 0 means enemy is to the left of player, so moving right (towards player) - face left
+        # Special case: enemy8 (eye) faces opposite direction
+        is_enemy8 = (self.level == 3 and self.enemy_type == EnemyType.MEDIUM)
         if vx > 0:
-            self.facing_left = False  # Enemy is right of player, moving left - face right (normal sprite)
+            self.facing_left = True if is_enemy8 else False  # Enemy is right of player, moving left
         elif vx < 0:
-            self.facing_left = True  # Enemy is left of player, moving right - face left (flipped)
+            self.facing_left = False if is_enemy8 else True  # Enemy is left of player, moving right
 
         # updating position
         new_x = self.x - vx * self.movement
