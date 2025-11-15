@@ -4,7 +4,7 @@ from settings import *
 from hit_box import *
 
 class Bullet:
-    def __init__(self, player, target_x, target_y):
+    def __init__(self, player, target_x, target_y, strength_active: bool=False):
         # Spawn bullet at center of player sprite
         player_width = URANEK_FRAME_WIDTH * 0.7  # skale = 0.7
         player_height = URANEK_FRAME_HEIGHT * 0.7
@@ -12,7 +12,8 @@ class Bullet:
         self.y = player.y + player_height / 2
         self.tx = target_x
         self.ty = target_y
-        self.ad = 10  # Changed from 100 to 10 for balanced gameplay
+        # Base balanced damage: 10 HP (1 serce). If strength_active, deal 20 HP (2 serca).
+        self.ad = 20 if strength_active else 10
         self.vx = self.tx - self.x
         self.vy = self.ty - self.y
         normalize_factor = (self.vx ** 2 + self.vy ** 2) ** 0.5

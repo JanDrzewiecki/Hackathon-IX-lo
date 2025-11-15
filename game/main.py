@@ -12,6 +12,7 @@ from blood_particles import BloodParticleSystem
 from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText, AustraliaMapText
 from shoe import Shoe
 from shield import Shield
+from strength import Strength
 
 pygame.init()
 
@@ -106,6 +107,7 @@ room_background = bg_manager.get_random_background(level=1)
 # Load power-up icons for HUD
 shoe_icon = None
 shield_icon = None
+sword_icon = None
 try:
     shoe_icon = pygame.image.load("game/boost_shoe2.png").convert_alpha()
     shoe_icon = pygame.transform.smoothscale(shoe_icon, (40, 40))
@@ -125,6 +127,25 @@ except:
         shield_icon = pygame.transform.smoothscale(shield_icon, (40, 40))
     except:
         print("Warning: Could not load shield.png")
+
+# Load sword icon for Strength power-up
+try:
+    sword_icon = pygame.image.load("game/swordbg.png").convert_alpha()
+    sword_icon = pygame.transform.smoothscale(sword_icon, (40, 40))
+except:
+    try:
+        sword_icon = pygame.image.load("swordbg.png").convert_alpha()
+        sword_icon = pygame.transform.smoothscale(sword_icon, (40, 40))
+    except:
+        try:
+            sword_icon = pygame.image.load("game/sword.png").convert_alpha()
+            sword_icon = pygame.transform.smoothscale(sword_icon, (40, 40))
+        except:
+            try:
+                sword_icon = pygame.image.load("sword.png").convert_alpha()
+                sword_icon = pygame.transform.smoothscale(sword_icon, (40, 40))
+            except:
+                print("Warning: Could not load swordbg.png or sword.png")
 
 # Load map image
 try:
@@ -516,6 +537,7 @@ def start_new_game(keep_current_level=False):
     global shoe_item, speed_boost_timer, original_movement, current_room_death_counter, current_room_drop_index, shoe_dropped_this_level, speed_boost_charges, _prev_e_pressed, _prev_r_pressed, shield_timer, shield_charges
     global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level, room_background
     global last_powerup_type
+    global strength_timer, strength_charges, _prev_t_pressed, original_ad
 
     # Store current level if we need to keep it
     saved_level = current_level if keep_current_level else 1
@@ -523,6 +545,7 @@ def start_new_game(keep_current_level=False):
     # Store power-up charges and type if transitioning between levels
     saved_speed_charges = speed_boost_charges if keep_current_level else 0
     saved_shield_charges = shield_charges if keep_current_level else 0
+    saved_strength_charges = strength_charges if keep_current_level else 0
     saved_powerup_type = last_powerup_type if keep_current_level else None
 
     # 🎲 LOSUJ NOWE TŁO przy każdym starcie gry (według poziomu)!
@@ -558,9 +581,13 @@ def start_new_game(keep_current_level=False):
     speed_boost_charges = saved_speed_charges  # Restore charges when transitioning
     shield_timer = 0
     shield_charges = saved_shield_charges  # Restore charges when transitioning
+    strength_timer = 0
+    strength_charges = saved_strength_charges  # Restore strength charges when transitioning
     _prev_e_pressed = False
     _prev_r_pressed = False
+    _prev_t_pressed = False
     original_movement = None
+    original_ad = None
     current_room_death_counter = 0
     shoe_dropped_this_level = False
     last_powerup_type = saved_powerup_type  # Restore powerup type when transitioning
@@ -621,7 +648,13 @@ current_room_drop_index = None
 # Level-wide drop flag (any power-up)
 shoe_dropped_this_level = False
 # Track which power-up type was obtained (to force opposite type on next level)
-last_powerup_type = None  # 'shoe' or 'shield'
+last_powerup_type = None  # 'shoe' or 'shield' or 'strength'
+
+# Strength power-up globals (double attack damage)
+strength_timer = 0
+strength_charges = 0
+_prev_t_pressed = False
+original_ad = None
 
 
 
@@ -793,7 +826,8 @@ while running:
     if mouse_buttons[0]:
         mx, my = pygame.mouse.get_pos()
         if bullets_cooldown <= 0:
-            bullets.append(Bullet(player, mx, my))
+            # Pass strength_active True when strength timer is active so bullet damage is doubled
+            bullets.append(Bullet(player, mx, my, strength_timer > 0))
             bullets_cooldown = FPS / 3
 
     did_teleport = player.update(keys, room_manager, visited_rooms, enemies, boss_killed)
@@ -894,6 +928,10 @@ while running:
                 shield_charges += 3  # Grant 3 shield charges
                 last_powerup_type = 'shield'  # Remember that we got shield
                 notifications.append(Notification(player.x, player.y, "Tarcza! +3 ładunki (R)", "cyan", font))
+            elif isinstance(shoe_item, Strength):
+                strength_charges += 2  # Grant 2 strength charges (user requested 2 uses)
+                last_powerup_type = 'strength'
+                notifications.append(Notification(player.x, player.y, "Siła! +2 ładunki (T)", "red", font))
             shoe_item = None  # Remove item
 
     for bullet in bullets:
@@ -948,6 +986,16 @@ while running:
             notifications.append(Notification(player.x, player.y, "Tarcza! (3s)", "cyan", font))
     _prev_r_pressed = r_pressed
 
+    t_pressed = keys[pygame.K_t]
+    if t_pressed and not _prev_t_pressed:
+        if strength_timer <= 0 and strength_charges > 0:
+            original_ad = player.ad
+            player.ad *= 2  # Double the player's attack damage
+            strength_timer = FPS * 3  # Set to 3 seconds
+            strength_charges -= 1
+            notifications.append(Notification(player.x, player.y, "Siła x2! (3s)", "red", font))
+    _prev_t_pressed = t_pressed
+
     # Handle speed boost timer and revert movement when finished
     if speed_boost_timer > 0:
         speed_boost_timer -= 1
@@ -961,6 +1009,14 @@ while running:
         shield_timer -= 1
         if shield_timer == 0:
             notifications.append(Notification(player.x, player.y, "Tarcza wygasła", "white", font))
+
+    # Handle strength timer and revert attack damage when finished
+    if strength_timer > 0:
+        strength_timer -= 1
+        if strength_timer == 0 and original_ad is not None:
+            player.ad = original_ad
+            notifications.append(Notification(player.x, player.y, "Siła wygasła", "white", font))
+            original_ad = None
 
     for bullet in bullets[:]:
         if bullet.x < 0 or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.y > SCREEN_HEIGHT:
@@ -997,6 +1053,19 @@ while running:
             shield_text = font.render(f"Tarcza (R): {shield_charges}", True, (100, 200, 255))
             screen.blit(shield_text, (20, shield_y_offset))
 
+    if strength_charges > 0:
+        strength_y_offset = SCREEN_HEIGHT - 120
+        if sword_icon:
+            # Draw sword icon
+            screen.blit(sword_icon, (20, strength_y_offset))
+            # Draw charge count next to icon
+            strength_text = font.render(f"x{strength_charges} (T)", True, (255, 100, 100))
+            screen.blit(strength_text, (70, strength_y_offset + 5))
+        else:
+            # Fallback to text if icon not loaded
+            strength_text = font.render(f"Siła (T): {strength_charges}", True, (255, 100, 100))
+            screen.blit(strength_text, (20, strength_y_offset))
+
     # Display current room and visited rooms in TOP-RIGHT corner
     room_text = font.render(f"Room: {room_manager.current_room_id}", True, (255, 255, 255))
     screen.blit(room_text, (SCREEN_WIDTH - room_text.get_width() - 20, 20))
@@ -1024,19 +1093,21 @@ while running:
                     current_room_death_counter += 1
                     # Boss-only drop: spawn a power-up (shoe or shield) only once per level
                     if (not shoe_dropped_this_level) and shoe_item is None and getattr(enemy, 'is_boss', False):
-                        # Force opposite power-up type if player got one in previous level
-                        if last_powerup_type == 'shoe':
-                            # Player got shoes last level, so drop shield this level
-                            shoe_item = Shield(max(0, enemy.x), max(0, enemy.y))
-                        elif last_powerup_type == 'shield':
-                            # Player got shield last level, so drop shoes this level
+                        # Choose a power-up type among Shoe, Shield, Strength but avoid repeating last_powerup_type
+                        options = ['shoe', 'shield', 'strength']
+                        if last_powerup_type in options:
+                            # remove last to prefer a different type
+                            try:
+                                options.remove(last_powerup_type)
+                            except ValueError:
+                                pass
+                        choice = random.choice(options) if options else 'shoe'
+                        if choice == 'shoe':
                             shoe_item = Shoe(max(0, enemy.x), max(0, enemy.y))
+                        elif choice == 'shield':
+                            shoe_item = Shield(max(0, enemy.x), max(0, enemy.y))
                         else:
-                            # First level or no previous pickup - randomly choose
-                            if random.random() < 0.5:
-                                shoe_item = Shoe(max(0, enemy.x), max(0, enemy.y))
-                            else:
-                                shoe_item = Shield(max(0, enemy.x), max(0, enemy.y))
+                            shoe_item = Strength(max(0, enemy.x), max(0, enemy.y))
                         shoe_dropped_this_level = True
                         # Prevent any further per-room drop calculations
                         current_room_drop_index = None
