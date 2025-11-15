@@ -12,7 +12,7 @@ from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
 from shoe import Shoe
 from shield import Shield
-from map_text import EuroAsiaMapText
+from map_text import EuroAsiaMapText, NorthSouthAmericaMapText
 
 pygame.init()
 
