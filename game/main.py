@@ -9,7 +9,7 @@ from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
-from map_text import EuroAsiaMapText
+from map_text import EuroAsiaMapText, NorthSouthAmericaMapText
 
 pygame.init()
 
@@ -41,6 +41,17 @@ except:
     except:
         map_image = None
         print("Warning: Could not load map.png")
+
+# Load map2 image for level 2
+try:
+    map2_image = pygame.image.load("game/map2.png").convert()
+except:
+    # If loading fails, try without 'game/' prefix
+    try:
+        map2_image = pygame.image.load("map2.png").convert()
+    except:
+        map2_image = None
+        print("Warning: Could not load map2.png")
 
 # Load start screen image
 try:
@@ -266,14 +277,25 @@ def show_about_screen(screen, font):
 
 
 
-def show_map(screen, map_image):
-    """Display the map image. Click on EURO-ASIA text to start the game with zoom animation."""
+def show_map(screen, map_image, level_num=1, show_text=True, text_class=None):
+    """Display the map image. Click on region text to start the game with zoom animation.
+
+    Args:
+        screen: pygame screen surface
+        map_image: the map image to display
+        level_num: current level number (for display)
+        show_text: whether to show the region text (False for completed regions)
+        text_class: MapText subclass to use (default: EuroAsiaMapText)
+    """
     if not map_image:
         # If map image failed to load, skip this screen
         return
 
-    # Create EURO-ASIA text instance
-    eurasia_text = EuroAsiaMapText()
+    # Create text instance only if we should show it
+    if text_class is None:
+        text_class = EuroAsiaMapText
+
+    region_text = text_class() if show_text else None
 
     # Animation state
     animating = False
@@ -295,13 +317,13 @@ def show_map(screen, map_image):
                 return
             if not animating and event.type == MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = event.pos
-                # Check if EURO-ASIA text was clicked
-                if eurasia_text.is_clicked(mouse_pos):
-                    # Start zoom animation toward EURO-ASIA
+                # If text exists, check if it was clicked, otherwise allow clicking anywhere
+                if region_text is None or region_text.is_clicked(mouse_pos):
+                    # Start zoom animation toward clicked point
                     click_pos = mouse_pos
                     anim_start_ms = pygame.time.get_ticks()
                     animating = True
-                # If clicked elsewhere, do nothing
+                # If text exists and clicked elsewhere, do nothing
 
         screen.fill((0, 0, 0))
 
@@ -343,11 +365,15 @@ def show_map(screen, map_image):
             # Idle (before click) view with instruction
             screen.blit(base_map, (0, 0))
 
-            # Draw EURO-ASIA text on the map
-            eurasia_text.draw(screen, scale_factor, (0, 0))
+            # Draw region text on the map if it exists
+            if region_text:
+                region_text.draw(screen, scale_factor, (0, 0))
+                # Show instruction for clicking on the region text
+                instruction_text = font.render(f"Kliknij na {region_text.text}, aby rozpocząć", True, (255, 255, 255))
+            else:
+                # Show generic instruction when no text to click
+                instruction_text = font.render("Kliknij w mapę, aby rozpocząć", True, (255, 255, 255))
 
-            # Update instruction text
-            instruction_text = font.render("Kliknij na EURO-ASIA, aby rozpocząć", True, (255, 255, 255))
             text_bg_rect = instruction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
             text_bg_rect.inflate_ip(20, 10)
             # Semi-transparent background for better readability
@@ -361,10 +387,17 @@ def show_map(screen, map_image):
         clock.tick(60)
 
 
-def start_new_game():
-    """Reset all game state to start a fresh run."""
+def start_new_game(keep_current_level=False):
+    """Reset all game state to start a fresh run.
+
+    Args:
+        keep_current_level: If True, preserve the current_level value (for level transitions)
+    """
     global room_manager, player, enemies, level, enemy_spawner, notifications
     global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level
+
+    # Store current level if we need to keep it
+    saved_level = current_level if keep_current_level else 1
 
     # Create room manager with corridors
     room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
@@ -376,7 +409,7 @@ def start_new_game():
 
     # Initialize all game state variables
     enemies = []
-    level = 1
+    level = saved_level  # Use saved level instead of always 1
     enemy_spawner = EnemySpawner(level, room_manager)
     notifications = []
     bullets = []
@@ -387,8 +420,27 @@ def start_new_game():
     visited_rooms = {0}
     cleared_rooms = set()
     boss_killed = False
-    current_level = 1
+    current_level = saved_level  # Use saved level
     hud = HeartsHUD()
+
+
+def go_to_map2():
+    """Automatically transition to map2 (level 2) with NORTH AND SOUTH AMERICA text.
+    This method shows map2 and starts a new game for level 2."""
+    global current_level
+
+    # Set current level to 2
+    current_level = 2
+
+    # Show map2 with NORTH AND SOUTH AMERICA text
+    if map2_image:
+        show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
+    else:
+        print("Warning: map2_image not loaded, using default map")
+        show_map(screen, map_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
+
+    # Start new game for level 2, keeping the current_level=2
+    start_new_game(keep_current_level=True)
 
 
 # Initialize global variables as None before game starts
@@ -556,11 +608,21 @@ while running:
     # Draw room with corridors (doors close behind you until you clear the room)
     room_manager.draw(screen, boss_killed, room_cleared)
 
+    restart_to_map2 = False
     for event in pygame.event.get():
         if event.type == QUIT:
             running = False
         if event.type == KEYDOWN and event.key == K_ESCAPE:
             running = False
+        # TEMPORARY: P key to skip to map2 (level 2) for testing
+        if event.type == KEYDOWN and event.key == K_p:
+            restart_to_map2 = True
+
+    # Handle restart to map2 if P was pressed
+    if restart_to_map2:
+        go_to_map2()
+        continue
+
     keys = pygame.key.get_pressed()
 
 
@@ -576,10 +638,20 @@ while running:
 
     # Handle special corridor (NEXT LEVEL after boss)
     if did_teleport == "next_level":
-        # Player reached the NEXT LEVEL corridor - show map
-        show_map(screen, map_image)
-        # After map, restart game or continue
-        start_new_game()
+        # Player reached the NEXT LEVEL corridor - increment level
+        current_level += 1
+        # Show appropriate map based on level
+        if current_level == 2 and map2_image:
+            # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
+            show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
+        elif current_level == 3:
+            # Add map3 support in future if needed
+            show_map(screen, map_image, level_num=current_level)
+        else:
+            # Default to map_image
+            show_map(screen, map_image, level_num=current_level)
+        # After map, restart game for next level, keeping the current_level
+        start_new_game(keep_current_level=True)
         continue
 
     # Handle room transition

@@ -108,8 +108,8 @@ class NorthSouthAmericaMapText(MapText):
         """Initialize NORTH AND SOUTH AMERICA text positioned over the Americas on the map"""
         # Position approximately over North/South America (left side of map)
         # Assuming map is roughly 1200x800, Americas are on the left side
-        americas_x = 320  # Adjust this based on your map
-        americas_y = 400  # Adjust this based on your map
+        americas_x = 350  # Adjust this based on your map
+        americas_y = 600  # Adjust this based on your map
 
         super().__init__(
             text="NORTH AND SOUTH AMERICA",
