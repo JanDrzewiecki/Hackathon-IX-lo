@@ -9,6 +9,7 @@ from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
+from map_text import EuroAsiaMapText
 
 pygame.init()
 
@@ -266,10 +267,13 @@ def show_about_screen(screen, font):
 
 
 def show_map(screen, map_image):
-    """Display the map image. Click to zoom into the clicked point with a short animation."""
+    """Display the map image. Click on EURO-ASIA text to start the game with zoom animation."""
     if not map_image:
         # If map image failed to load, skip this screen
         return
+
+    # Create EURO-ASIA text instance
+    eurasia_text = EuroAsiaMapText()
 
     # Animation state
     animating = False
@@ -290,26 +294,36 @@ def show_map(screen, map_image):
                 # Allow skipping the map with any key if no animation has started
                 return
             if not animating and event.type == MOUSEBUTTONDOWN and event.button == 1:
-                # Start zoom-in animation toward the clicked point
-                click_pos = event.pos
-                anim_start_ms = pygame.time.get_ticks()
-                animating = True
+                mouse_pos = event.pos
+                # Check if EURO-ASIA text was clicked
+                if eurasia_text.is_clicked(mouse_pos):
+                    # Start zoom animation toward EURO-ASIA
+                    click_pos = mouse_pos
+                    anim_start_ms = pygame.time.get_ticks()
+                    animating = True
+                # If clicked elsewhere, do nothing
 
         screen.fill((0, 0, 0))
 
         # Base map scaled to screen size
         base_map = pygame.transform.scale(map_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
+        # Calculate scale factor from original map to screen size
+        scale_x = SCREEN_WIDTH / map_image.get_width()
+        scale_y = SCREEN_HEIGHT / map_image.get_height()
+        scale_factor = min(scale_x, scale_y)
+
         if animating and click_pos is not None:
             elapsed = pygame.time.get_ticks() - anim_start_ms
             t = min(1.0, elapsed / anim_duration_ms)
             et = ease_out_cubic(t)
 
-            # Zoom from 1.0 to ~1.8x with easing
-            zoom = 1.0 + 0.8 * et
+            # Zoom from 1.0 to ~2.0x with easing
+            zoom = 1.0 + 1.0 * et
             zw = max(1, int(SCREEN_WIDTH * zoom))
             zh = max(1, int(SCREEN_HEIGHT * zoom))
             zoomed = pygame.transform.smoothscale(base_map, (zw, zh))
+
 
             # Pan so that the clicked point moves toward the center during zoom
             cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
@@ -328,7 +342,12 @@ def show_map(screen, map_image):
         else:
             # Idle (before click) view with instruction
             screen.blit(base_map, (0, 0))
-            instruction_text = font.render("Kliknij w mapę, aby przybliżyć i rozpocząć", True, (255, 255, 255))
+
+            # Draw EURO-ASIA text on the map
+            eurasia_text.draw(screen, scale_factor, (0, 0))
+
+            # Update instruction text
+            instruction_text = font.render("Kliknij na EURO-ASIA, aby rozpocząć", True, (255, 255, 255))
             text_bg_rect = instruction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
             text_bg_rect.inflate_ip(20, 10)
             # Semi-transparent background for better readability
