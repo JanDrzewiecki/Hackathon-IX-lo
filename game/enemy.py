@@ -44,6 +44,11 @@ class Enemy:
             self.frames = self.load_sheet("enemy2.png", 100, 100)
             if self.frames:
                 self.current_sprite = self.frames[0]
+        elif self.enemy_type == EnemyType.STRONG:
+            # Use fireball.png or uranek.png for strong enemy (100x100)
+            self.frames = self.load_sheet("enemy3.png", 100, 100)
+            if self.frames:
+                self.current_sprite = self.frames[0]
 
         # Prepare heart icons once (shared)
         self._ensure_hearts_loaded()
@@ -139,8 +144,8 @@ class Enemy:
                     screen.blit(Enemy._heart_img, (x, y0), area=area)
 
     def draw(self, screen):
-        # Draw animated sprite for WEAK and MEDIUM enemies, otherwise draw colored square
-        if (self.enemy_type == EnemyType.WEAK or self.enemy_type == EnemyType.MEDIUM) and self.current_sprite:
+        # Draw animated sprite for all enemy types with sprites
+        if self.current_sprite:
             # Flip sprite horizontally if facing left
             if self.facing_left:
                 flipped_sprite = pygame.transform.flip(self.current_sprite, True, False)
@@ -150,15 +155,15 @@ class Enemy:
                 sprite_rect = self.current_sprite.get_rect(center=(int(self.x + self.size // 2), int(self.y + self.size // 2)))
                 screen.blit(self.current_sprite, sprite_rect)
         else:
-            # Draw colored square for other enemy types (STRONG)
+            # Fallback: draw colored square if no sprite available
             pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
 
         # Draw hearts above enemy
         self._draw_enemy_hearts(screen)
 
     def update(self, player_x, player_y):
-        # Update animation for WEAK and MEDIUM enemies
-        if (self.enemy_type == EnemyType.WEAK or self.enemy_type == EnemyType.MEDIUM) and self.frames:
+        # Update animation for all enemies with frames
+        if self.frames:
             self.frame_timer += 1
             if self.frame_timer >= self.frame_speed:
                 self.frame_timer = 0

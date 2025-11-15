@@ -31,12 +31,12 @@ class EnemyTypeConfig:
             'size': 40
         },
         EnemyType.STRONG: {
-            'hp': 80,           # 8 hits * 10 damage = 80 HP
+            'hp': 70,           # 7 hits * 10 damage = 70 HP (7 hearts)
             'ad': 20,           # Attack damage
             'speed': 3,         # Movement speed
             'count': 2,         # Number of enemies to spawn
             'color': (255, 100, 100),  # Red
-            'size': 48
+            'size': 100         # Match sprite size
         }
     }
 
