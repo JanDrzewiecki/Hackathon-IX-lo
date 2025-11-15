@@ -165,7 +165,7 @@ class Enemy:
                 sprite_rect = self.current_sprite.get_rect(center=(int(self.x + self.size // 2), int(self.y + self.size // 2)))
                 screen.blit(self.current_sprite, sprite_rect)
         else:
-            # Draw colored square for other enemy types (STRONG)
+            # Draw colored square for BOSS (no sprite)
             pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
 
         # Draw crown for boss
@@ -184,9 +184,9 @@ class Enemy:
         # Draw hearts above enemy
         self._draw_enemy_hearts(screen)
 
-    def update(self, player_x, player_y):
+    def update(self, player_x, player_y, enemy_bullets=None):
         # Update animation for all enemies with frames
-        if (self.enemy_type == EnemyType.WEAK or self.enemy_type == EnemyType.MEDIUM) and self.frames:
+        if (self.enemy_type == EnemyType.WEAK or self.enemy_type == EnemyType.MEDIUM or self.enemy_type == EnemyType.STRONG) and self.frames:
             self.frame_timer += 1
             if self.frame_timer >= self.frame_speed:
                 self.frame_timer = 0
