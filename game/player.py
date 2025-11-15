@@ -6,9 +6,11 @@ class Player:
     def __init__(self, player_start_x, player_start_y):
         self.x = player_start_x
         self.y = player_start_y
-        self.hp = 60
+        self.hp = 10000000000000
+        # self.hp = 60
         self.max_hp = self.hp
-        self.ad = 20
+        self.ad = 2000000000000
+        # self.ad = 20
         self.movement = 5
         self.points = 0
 
@@ -95,6 +97,9 @@ class Player:
             self.hit_box.update_position(old_x, old_y)
             return False
 
+        # Check if player reached the special NEXT LEVEL corridor (boss room) - CHECK THIS FIRST!
+        if boss_killed and room_manager.check_special_corridor(self.x, self.y, int(URANEK_FRAME_WIDTH * 0.7)):
+            return "next_level"  # Special return value
 
         # Sprawdź teleportację do innego pokoju
         did_teleport = room_manager.check_room_transition(self, enemies_alive)

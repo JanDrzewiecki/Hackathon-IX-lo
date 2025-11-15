@@ -555,6 +555,13 @@ while running:
 
     did_teleport = player.update(keys, room_manager, visited_rooms, enemies, boss_killed)
 
+    # Handle special corridor (NEXT LEVEL after boss)
+    if did_teleport == "next_level":
+        # Player reached the NEXT LEVEL corridor - show map
+        show_map(screen, map_image)
+        # After map, restart game or continue
+        start_new_game()
+        continue
 
     # Handle room transition
     if did_teleport:

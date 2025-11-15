@@ -487,33 +487,51 @@ class RoomManager:
                                                              (corridor.corridor_width, corridor.corridor_height))
                         screen.blit(scaled_door, (corridor.x, corridor.y))
 
-        # If boss killed and in room 5, draw special NEXT LEVEL corridor at bottom
-        if boss_killed and self.current_room_id == 5:
-            # Draw a golden/special corridor at bottom center
-            special_corridor_width = 400
-            special_corridor_x = self.room_x + self.room_width // 2 - special_corridor_width // 2
-            special_corridor_y = self.room_y + self.room_height
-            special_corridor_height = self.screen_height - special_corridor_y
+        # Draw golden NEXT LEVEL corridor at entrance after boss is killed
+        if boss_killed and self.current_room_id == 5 and hasattr(self, 'boss_room_entrance'):
+            # Draw golden gate at the entrance corridor
+            entrance_direction = self.boss_room_entrance
+            if entrance_direction in self.corridors:
+                corridor = self.corridors[entrance_direction]
 
-            # Draw golden gate
-            if self.gate_image:
-                rotated_gate = pygame.transform.rotate(self.gate_image, -270)
-                scaled_gate = pygame.transform.scale(rotated_gate, (special_corridor_width, special_corridor_height))
-                # Tint it golden
-                golden_overlay = pygame.Surface((special_corridor_width, special_corridor_height), pygame.SRCALPHA)
-                golden_overlay.fill((255, 215, 0, 100))
-                scaled_gate.blit(golden_overlay, (0, 0), special_flags=pygame.BLEND_ADD)
-                screen.blit(scaled_gate, (special_corridor_x, special_corridor_y))
+                # Draw golden/special gate
+                if self.gate_image:
+                    # Rotate based on direction (same as normal gates)
+                    if entrance_direction == 'top':
+                        rotated_gate = pygame.transform.rotate(self.gate_image, -90)
+                    elif entrance_direction == 'bottom':
+                        rotated_gate = pygame.transform.rotate(self.gate_image, -270)
+                    elif entrance_direction == 'left':
+                        rotated_gate = self.gate_image
+                    elif entrance_direction == 'right':
+                        rotated_gate = pygame.transform.rotate(self.gate_image, 180)
 
-            # Draw "NEXT LEVEL" text
-            font = pygame.font.SysFont("Arial", 40, bold=True)
-            text = font.render("NEXT LEVEL", True, (255, 215, 0))
-            text_x = special_corridor_x + special_corridor_width // 2 - text.get_width() // 2
-            text_y = special_corridor_y + 50
-            # Draw text shadow
-            shadow = font.render("NEXT LEVEL", True, (0, 0, 0))
-            screen.blit(shadow, (text_x + 2, text_y + 2))
-            screen.blit(text, (text_x, text_y))
+                    scaled_gate = pygame.transform.scale(rotated_gate,
+                                                         (corridor.corridor_width, corridor.corridor_height))
+
+                    # Add golden tint
+                    golden_surface = pygame.Surface((corridor.corridor_width, corridor.corridor_height),
+                                                   pygame.SRCALPHA)
+                    golden_surface.fill((255, 215, 0, 80))
+                    scaled_gate.blit(golden_surface, (0, 0), special_flags=pygame.BLEND_ADD)
+
+                    screen.blit(scaled_gate, (corridor.x, corridor.y))
+
+                # Draw "NEXT LEVEL" text on the golden corridor
+                try:
+                    special_font = pygame.font.SysFont("Arial", 32, bold=True)
+                    next_text = special_font.render("NEXT LEVEL", True, (255, 215, 0))
+
+                    # Position text in the middle of the corridor
+                    text_x = corridor.x + corridor.corridor_width // 2 - next_text.get_width() // 2
+                    text_y = corridor.y + corridor.corridor_height // 2 - next_text.get_height() // 2
+
+                    # Draw shadow
+                    shadow_text = special_font.render("NEXT LEVEL", True, (0, 0, 0))
+                    screen.blit(shadow_text, (text_x + 2, text_y + 2))
+                    screen.blit(next_text, (text_x, text_y))
+                except:
+                    pass
 
     def check_corridor_transition(self, player_x, player_y, player_size, enemies_alive=0):
         """Check if player should move to another room"""
@@ -529,11 +547,40 @@ class RoomManager:
                     # Switch to new room
                     self.current_room_id = new_room_id
                     self.current_room = self.rooms[new_room_id]
+
+                    # Save entrance direction if entering boss room (room 5)
+                    if new_room_id == 5:
+                        self.boss_room_entrance = opposite_direction
+
                     self._build_corridors()
 
                     return True, new_x, new_y, direction
 
         return False, None, None, None
+
+    def check_special_corridor(self, player_x, player_y, player_size):
+        """Check if player reached the special NEXT LEVEL corridor (boss room exit)
+
+        Returns:
+            True if player reached the entrance corridor after killing boss, False otherwise
+        """
+        if self.current_room_id != 5:
+            return False
+
+        # Check if boss room entrance direction is saved
+        if not hasattr(self, 'boss_room_entrance'):
+            return False
+
+        entrance_direction = self.boss_room_entrance
+        if entrance_direction not in self.corridors:
+            return False
+
+        # Check if player reached the edge in the entrance corridor direction
+        corridor = self.corridors[entrance_direction]
+
+        # Use the same edge detection as normal corridor transition
+        return corridor.reached_edge(player_x, player_y, player_size,
+                                     self.screen_width, self.screen_height)
 
     def _get_spawn_position(self, corridor_position, player_size):
         """Get spawn position when entering from a corridor"""
