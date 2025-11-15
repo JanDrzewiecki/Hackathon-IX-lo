@@ -81,11 +81,11 @@ class Player:
         # Aktualizuj hit_box z nową pozycją
         self.hit_box.update_position(self.x, self.y)
 
-        # Count enemies alive
+        # Count enemies alive in current room
         enemies_alive = len(enemies) if enemies is not None else 0
 
-        # Sprawdź kolizje ze ścianami (including blocked corridors)
-        collision = room_manager.check_wall_collision(self.hit_box, visited_rooms, enemies_alive)
+        # Sprawdź kolizje ze ścianami (corridors blocked if enemies alive)
+        collision = room_manager.check_wall_collision(self.hit_box, enemies_alive)
 
         if collision:
             # Cofnij ruch przy kolizji
@@ -97,7 +97,7 @@ class Player:
 
 
         # Sprawdź teleportację do innego pokoju
-        did_teleport = room_manager.check_room_transition(self, visited_rooms, enemies_alive)
+        did_teleport = room_manager.check_room_transition(self, enemies_alive)
 
         return did_teleport
 
