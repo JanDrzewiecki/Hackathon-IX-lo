@@ -57,7 +57,10 @@ class Enemy:
     def load_sheet(self, path, frame_width, frame_height):
         """Load sprite sheet and split it into individual frames"""
         try:
-            sheet = pygame.image.load(path).convert_alpha()
+            try:
+                sheet = pygame.image.load(f"game/{path}").convert_alpha()
+            except:
+                sheet = pygame.image.load(path).convert_alpha()
             sheet_width, sheet_height = sheet.get_size()
 
             cols = sheet_width // frame_width

@@ -29,6 +29,126 @@ except:
         room_background = None
         print("Warning: Could not load room-1.png")
 
+# Load map image
+try:
+    map_image = pygame.image.load("game/map.png").convert()
+except:
+    # If loading fails, try without 'game/' prefix
+    try:
+        map_image = pygame.image.load("map.png").convert()
+    except:
+        map_image = None
+        print("Warning: Could not load map.png")
+
+# Load start screen image
+try:
+    start_screen_image = pygame.image.load("game/ekran_startowy.png").convert()
+except:
+    # If loading fails, try without 'game/' prefix
+    try:
+        start_screen_image = pygame.image.load("ekran_startowy.png").convert()
+    except:
+        start_screen_image = None
+        print("Warning: Could not load ekran_startowy.png")
+
+
+def show_start_screen(screen, start_screen_image):
+    """Display the start screen with interactive buttons.
+    Returns 'start' to begin the game, 'about' for about screen, or 'quit' to exit."""
+    if not start_screen_image:
+        # If start screen image failed to load, skip this screen
+        return 'start'
+
+    # Define button positions based on the image layout
+    # Buttons are positioned on the right side of the screen, lower area
+    # START button (top button)
+    start_button_rect = pygame.Rect(0, 0, 360, 90)
+    start_button_rect.center = (SCREEN_WIDTH // 2 + 280, SCREEN_HEIGHT // 2 + 100)
+
+    # ABOUT button (middle button)
+    about_button_rect = pygame.Rect(0, 0, 360, 90)
+    about_button_rect.center = (SCREEN_WIDTH // 2 + 280, SCREEN_HEIGHT // 2 + 270)
+
+    # EXIT button (bottom button)
+    exit_button_rect = pygame.Rect(0, 0, 360, 90)
+    exit_button_rect.center = (SCREEN_WIDTH // 2 + 280, SCREEN_HEIGHT // 2 + 400)
+
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                return 'quit'
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                return 'quit'
+            if event.type == MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = event.pos
+                if start_button_rect.collidepoint(mouse_pos):
+                    return 'start'
+                elif about_button_rect.collidepoint(mouse_pos):
+                    return 'about'
+                elif exit_button_rect.collidepoint(mouse_pos):
+                    return 'quit'
+
+        screen.fill((0, 0, 0))
+
+        # Scale start screen to fit screen
+        scaled_start = pygame.transform.scale(start_screen_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.blit(scaled_start, (0, 0))
+
+
+        pygame.display.update()
+        clock.tick(60)
+
+
+def show_about_screen(screen, font):
+    """Display the about/credits screen."""
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                return 'quit'
+            if event.type == KEYDOWN or event.type == MOUSEBUTTONDOWN:
+                waiting = False
+
+        screen.fill((20, 40, 20))
+
+        # Title
+        title_text = font.render("URANEK REACTOR RUN", True, (150, 255, 150))
+        screen.blit(title_text, (SCREEN_WIDTH // 2 - title_text.get_width() // 2, 100))
+
+
+
+def show_map(screen, map_image):
+    """Display the map image. Click anywhere or press any key to continue."""
+    if not map_image:
+        # If map image failed to load, skip this screen
+        return
+
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                exit()
+            if event.type == KEYDOWN or event.type == MOUSEBUTTONDOWN:
+                waiting = False
+
+        screen.fill((0, 0, 0))
+
+        # Scale map to fit screen
+        scaled_map = pygame.transform.scale(map_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.blit(scaled_map, (0, 0))
+
+        # Add instruction text
+        instruction_text = font.render("Click or press any key to start", True, (255, 255, 255))
+        text_bg_rect = instruction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
+        text_bg_rect.inflate_ip(20, 10)
+        pygame.draw.rect(screen, (0, 0, 0, 180), text_bg_rect, border_radius=8)
+        screen.blit(instruction_text, (SCREEN_WIDTH // 2 - instruction_text.get_width() // 2, SCREEN_HEIGHT - 50 - instruction_text.get_height() // 2))
+
+        pygame.display.update()
+        clock.tick(60)
+
 
 def start_new_game():
     """Reset all game state to start a fresh run."""
@@ -101,10 +221,23 @@ def show_game_over(screen, font):
         clock.tick(60)
 
 
-# Initial game state
-start_new_game()
-
+# Initial game state - Show start screen first
 running = True
+game_started = False
+
+while running and not game_started:
+    action = show_start_screen(screen, start_screen_image)
+    if action == 'start':
+        show_map(screen, map_image)
+        start_new_game()
+        game_started = True
+    elif action == 'about':
+        result = show_about_screen(screen, font)
+        if result == 'quit':
+            running = False
+        # Otherwise loop back to start screen
+    elif action == 'quit':
+        running = False
 
 while running:
     clock.tick(FPS)
@@ -137,9 +270,6 @@ while running:
 
     did_teleport = player.update(keys, room_manager)
 
-    # DEBUG: Print player position after update if keys were pressed
-    if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_a] or keys[pygame.K_d]:
-        print(f"After move: ({player.x:.1f}, {player.y:.1f})")
 
     # Handle room transition
     if did_teleport:
