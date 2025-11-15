@@ -49,6 +49,14 @@ class HeartsHUD:
         # per-slot: {'start': ms, 'duration': ms, 'power': float}
         self.anim = {}
 
+        # Shoe boost HUD assets (lazy-init on first draw)
+        self._shoe_icon = None
+        self._shoe_size = int(self.heart_size * 0.85)
+        self._font_small = None
+        # Shield HUD assets
+        self._shield_icon = None
+        self._shield_size = int(self.heart_size * 0.85)
+
     def _trigger_loss_anim(self, slot_idx: int, half_steps_lost: int):
         # stronger animation for full-heart loss (2 half-steps)
         power = 1.0 if half_steps_lost >= 2 else 0.55
@@ -71,7 +79,75 @@ class HeartsHUD:
         scale = 1.0 + pop
         return scale
 
-    def draw(self, surface: pygame.Surface, player_obj):
+    def _ensure_shoe_assets(self):
+        if self._shoe_icon is None:
+            img = None
+            try:
+                img = pygame.image.load("game/boost_shoe2.png").convert_alpha()
+            except Exception:
+                try:
+                    img = pygame.image.load("boost_shoe2.png").convert_alpha()
+                except Exception:
+                    img = None
+            if img is None:
+                surf = pygame.Surface((self._shoe_size, self._shoe_size), pygame.SRCALPHA)
+                surf.fill((220, 60, 60))
+                self._shoe_icon = surf
+            else:
+                self._shoe_icon = pygame.transform.smoothscale(img, (self._shoe_size, self._shoe_size))
+        if self._font_small is None:
+            # Use default font scaled to shoe size
+            size = max(12, int(self._shoe_size * 0.9))
+            self._font_small = pygame.font.Font(None, size)
+
+    def _ensure_shield_assets(self):
+        if self._shield_icon is None:
+            img = None
+            paths = (
+                "game/shield.png",
+                "shield.png",
+                "game/shield.jpg.avif",
+                "shield.jpg.avif",
+                "game/boost_shield.png",
+                "boost_shield.png",
+            )
+            # Try pygame loader first
+            for path in paths:
+                try:
+                    img = pygame.image.load(path).convert_alpha()
+                    break
+                except Exception:
+                    img = None
+            # If AVIF not supported by pygame, try optional PIL fallback
+            if img is None:
+                try:
+                    from PIL import Image
+                    import os
+                    for path in paths:
+                        if os.path.exists(path) and path.lower().endswith(".avif"):
+                            pil_img = Image.open(path).convert("RGBA")
+                            mode = pil_img.mode
+                            size = pil_img.size
+                            data = pil_img.tobytes()
+                            img = pygame.image.fromstring(data, size, mode).convert_alpha()
+                            break
+                except Exception:
+                    img = None
+            if img is None:
+                # Blue circle fallback
+                size = self._shield_size
+                surf = pygame.Surface((size, size), pygame.SRCALPHA)
+                pygame.draw.circle(surf, (80, 160, 255), (size//2, size//2), size//2)
+                pygame.draw.circle(surf, (200, 230, 255), (size//2, size//2), size//2, 3)
+                self._shield_icon = surf
+            else:
+                self._shield_icon = pygame.transform.smoothscale(img, (self._shield_size, self._shield_size))
+        # Ensure small font exists even if only shield is present (fix crash)
+        if self._font_small is None:
+            size = max(12, int(self._shield_size * 0.9))
+            self._font_small = pygame.font.Font(None, size)
+
+    def draw(self, surface: pygame.Surface, player_obj, speed_boost_seconds=None, speed_boost_charges=None, shield_seconds=None, shield_charges=None):
         slots = min(3, max(1, player_obj.max_hp // self.hp_per_heart))
         max_shown = slots * self.hp_per_heart
         shown_hp = max(0, min(player_obj.hp, max_shown))
@@ -168,3 +244,65 @@ class HeartsHUD:
                     surface.blit(temp, (draw_x, y + (heart_h - h2) // 2))
                 else:
                     surface.blit(temp, (draw_x, y))
+
+        # Draw shoe speed boost icon, charges and countdown to the right of hearts
+        shoe_active = (speed_boost_seconds is not None and speed_boost_seconds > 0)
+        shoe_have = (speed_boost_charges is not None and speed_boost_charges > 0)
+        draw_x = self.x0 + slots * step_w + self.spacing * 4
+        if shoe_active or shoe_have:
+            self._ensure_shoe_assets()
+            y = self.y0 + max(0, (heart_h - self._shoe_size) // 2)
+            # Icon
+            surface.blit(self._shoe_icon, (draw_x, y))
+            # Charges text (e.g., x3)
+            charges_txt = f"x{max(0, int(speed_boost_charges or 0))}"
+            charges_surf = self._font_small.render(charges_txt, True, (255, 255, 255))
+            cx = draw_x + self._shoe_size + 10
+            cy = y + (self._shoe_size - charges_surf.get_height()) // 2
+            surface.blit(charges_surf, (cx, cy))
+            end_x = cx + charges_surf.get_width()
+            # If active, show countdown box after charges
+            if shoe_active:
+                secs = int(max(0, speed_boost_seconds))
+                text_surf = self._font_small.render(str(secs), True, (255, 255, 255))
+                pad_x = 8
+                pad_y = 4
+                box_w = text_surf.get_width() + pad_x * 2
+                box_h = text_surf.get_height() + pad_y * 2
+                box_y = y + (self._shoe_size - box_h) // 2
+                box_x = end_x + 10
+                bg = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+                bg.fill((0, 0, 0, 140))
+                surface.blit(bg, (box_x, box_y))
+                surface.blit(text_surf, (box_x + pad_x, box_y + pad_y))
+                end_x = box_x + box_w
+            draw_x = (end_x + 20) if 'end_x' in locals() else (draw_x + self._shoe_size + 60)
+
+        # Draw shield icon, charges and countdown after the shoe block
+        shield_active = (shield_seconds is not None and shield_seconds > 0)
+        shield_have = (shield_charges is not None and shield_charges > 0)
+        if shield_active or shield_have:
+            self._ensure_shield_assets()
+            y = self.y0 + max(0, (heart_h - self._shield_size) // 2)
+            # Icon
+            surface.blit(self._shield_icon, (draw_x, y))
+            # Charges text
+            charges_txt = f"x{max(0, int(shield_charges or 0))}"
+            charges_surf = self._font_small.render(charges_txt, True, (255, 255, 255))
+            cx = draw_x + self._shield_size + 10
+            cy = y + (self._shield_size - charges_surf.get_height()) // 2
+            surface.blit(charges_surf, (cx, cy))
+            end2_x = cx + charges_surf.get_width()
+            if shield_active:
+                secs = int(max(0, shield_seconds))
+                text_surf = self._font_small.render(str(secs), True, (255, 255, 255))
+                pad_x = 8
+                pad_y = 4
+                box_w = text_surf.get_width() + pad_x * 2
+                box_h = text_surf.get_height() + pad_y * 2
+                box_y = y + (self._shield_size - box_h) // 2
+                box_x = end2_x + 10
+                bg = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+                bg.fill((0, 0, 0, 140))
+                surface.blit(bg, (box_x, box_y))
+                surface.blit(text_surf, (box_x + pad_x, box_y + pad_y))

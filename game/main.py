@@ -1,4 +1,5 @@
 import pygame
+import random
 from pygame.locals import *
 from player import *
 from enemy_spawner import *
@@ -9,6 +10,8 @@ from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
+from shoe import Shoe
+from shield import Shield
 from map_text import EuroAsiaMapText
 
 pygame.init()
@@ -365,6 +368,7 @@ def start_new_game():
     """Reset all game state to start a fresh run."""
     global room_manager, player, enemies, level, enemy_spawner, notifications
     global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level
+    global shoe_item, speed_boost_timer, original_movement, current_room_death_counter, current_room_drop_index, shoe_dropped_this_level, speed_boost_charges, _prev_e_pressed, _prev_r_pressed, shield_timer, shield_charges
 
     # Create room manager with corridors
     room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
@@ -390,6 +394,22 @@ def start_new_game():
     current_level = 1
     hud = HeartsHUD()
 
+    # Initialize shoe/speed boost and per-room drop state
+    shoe_item = None
+    speed_boost_timer = 0
+    speed_boost_charges = 0
+    shield_timer = 0
+    shield_charges = 0
+    _prev_e_pressed = False
+    _prev_r_pressed = False
+    original_movement = None
+    current_room_death_counter = 0
+    shoe_dropped_this_level = False
+    # Initialize spawner for first room and decide random drop index for this room (only if not already dropped this level)
+    enemy_spawner.reset_for_new_room()
+    # Boss-only shoe drop: no random per-room drop index
+    current_room_drop_index = None
+
 
 # Initialize global variables as None before game starts
 room_manager = None
@@ -408,6 +428,20 @@ cleared_rooms = set()
 boss_killed = False
 current_level = 1
 hud = None
+
+# Power-up state (shoe = speed, shield = invulnerability)
+shoe_item = None  # holds either Shoe or Shield instance when on ground
+speed_boost_timer = 0
+speed_boost_charges = 0
+shield_timer = 0
+shield_charges = 0
+_prev_e_pressed = False
+_prev_r_pressed = False
+original_movement = None
+current_room_death_counter = 0
+current_room_drop_index = None
+# Level-wide drop flag (any power-up)
+shoe_dropped_this_level = False
 
 
 
@@ -591,9 +625,17 @@ while running:
         # Reset enemy spawner for new room's enemy type (only if room not cleared)
         if room_manager.current_room_id not in cleared_rooms:
             enemy_spawner.reset_for_new_room()
+            # Reset per-room shoe drop state (boss-only drop: no random per-room index)
+            shoe_item = None
+            current_room_death_counter = 0
+            current_room_drop_index = None
         else:
             # Room is cleared, don't spawn enemies
             enemy_spawner.enemies_spawned_in_room = enemy_spawner.max_enemies_for_room
+            # Also no drop in cleared room
+            shoe_item = None
+            current_room_drop_index = None
+            current_room_death_counter = 0
         # Add notification showing room number
         notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
 
@@ -617,9 +659,13 @@ while running:
     for enemy in enemies:
         enemy.update(player.x, player.y, enemy_bullets)
         enemy.draw(screen)
-        if damage_cooldown <= 0 and player.hit_box.collide(enemy.hit_box):
-            player.hp = max(0, player.hp - enemy.ad)
-            damage_cooldown = int(FPS * 0.75)
+        # Contact damage (ignored if shield active)
+        if player.hit_box.collide(enemy.hit_box):
+            if shield_timer > 0:
+                pass  # no damage while shielded
+            elif damage_cooldown <= 0:
+                player.hp = max(0, player.hp - enemy.ad)
+                damage_cooldown = int(FPS * 0.75)
 
     for notification in notifications:
         notification.update(notifications)
@@ -645,20 +691,76 @@ while running:
         if eb.x < 0 or eb.x > SCREEN_WIDTH or eb.y < 0 or eb.y > SCREEN_HEIGHT:
             enemy_bullets.remove(eb)
         # Check collision with player
-        elif damage_cooldown <= 0 and player.hit_box.collide(eb.hit_box):
-            player.hp = max(0, player.hp - eb.ad)
-            damage_cooldown = int(FPS * 0.75)
-            enemy_bullets.remove(eb)
+        elif player.hit_box.collide(eb.hit_box):
+            # If shield active, ignore damage but remove the bullet
+            if shield_timer > 0:
+                enemy_bullets.remove(eb)
+            elif damage_cooldown <= 0:
+                player.hp = max(0, player.hp - eb.ad)
+                damage_cooldown = int(FPS * 0.75)
+                enemy_bullets.remove(eb)
 
     bullets_cooldown -= 1
     damage_cooldown = max(0, damage_cooldown - 1)
+
+    # Handle manual activation keys for power-ups: E for speed, R for shield
+    e_pressed = keys[pygame.K_e]
+    if e_pressed and not _prev_e_pressed:
+        if speed_boost_timer <= 0 and speed_boost_charges > 0:
+            if original_movement is None:
+                original_movement = player.movement
+            player.movement = int(original_movement * 2)
+            speed_boost_timer = FPS * 5
+            speed_boost_charges -= 1
+            notifications.append(Notification(player.x, player.y, "Speed x2! (5s)", "yellow", font))
+    _prev_e_pressed = e_pressed
+
+    r_pressed = keys[pygame.K_r]
+    if r_pressed and not _prev_r_pressed:
+        if shield_timer <= 0 and shield_charges > 0:
+            shield_timer = FPS * 3
+            shield_charges -= 1
+            notifications.append(Notification(player.x, player.y, "Tarcza! (3s)", "cyan", font))
+    _prev_r_pressed = r_pressed
+
+    # Handle speed boost timer and revert movement when finished
+    if speed_boost_timer > 0:
+        speed_boost_timer -= 1
+        if speed_boost_timer == 0 and original_movement is not None:
+            player.movement = original_movement
+            notifications.append(Notification(player.x, player.y, "Speed boost ended", "white", font))
+            original_movement = None
+
+    # Handle shield timer
+    if shield_timer > 0:
+        shield_timer -= 1
+        if shield_timer == 0:
+            notifications.append(Notification(player.x, player.y, "Tarcza wygasła", "white", font))
+
     for bullet in bullets[:]:
         if bullet.x < 0 or bullet.x > SCREEN_WIDTH or bullet.y < 0 or bullet.y > SCREEN_HEIGHT:
             bullets.remove(bullet)
 
 
-    # Draw HUD (hearts)
-    hud.draw(screen, player)
+    # Draw power-up item (shoe or shield) if present and handle pickup
+    if shoe_item is not None:
+        shoe_item.draw(screen)
+        # Check pickup collision
+        if player.hit_box.collide(shoe_item.hit_box):
+            # Grant charges based on item type; do not auto-activate
+            if isinstance(shoe_item, Shoe):
+                speed_boost_charges = 3
+                notifications.append(Notification(player.x, player.y, "Zebrano buty: 3 użycia (E)", "yellow", font))
+            else:
+                shield_charges = 2
+                notifications.append(Notification(player.x, player.y, "Zebrano tarczę: 2 użycia (R)", "cyan", font))
+            # Remove the item from the world
+            shoe_item = None
+
+    # Draw HUD (hearts and power-up info)
+    seconds_left = ((speed_boost_timer + FPS - 1) // FPS) if speed_boost_timer > 0 else None
+    shield_seconds = ((shield_timer + FPS - 1) // FPS) if shield_timer > 0 else None
+    hud.draw(screen, player, seconds_left, speed_boost_charges, shield_seconds, shield_charges)
 
     # Display current room and visited rooms in TOP-RIGHT corner
     room_text = font.render(f"Room: {room_manager.current_room_id}", True, (255, 255, 255))
@@ -683,6 +785,18 @@ while running:
                 if enemy.hp <= 0:
                     # Create green blood particle explosion
                     blood_systems.append(BloodParticleSystem(enemy.x, enemy.y, num_particles=25))
+                    # Before removing, handle potential shoe drop
+                    current_room_death_counter += 1
+                    # Boss-only drop: spawn a power-up (shoe or shield) only once per level
+                    if (not shoe_dropped_this_level) and shoe_item is None and getattr(enemy, 'is_boss', False):
+                        # Randomly choose which power-up to drop: Shoe (speed) or Shield (invulnerability)
+                        if random.random() < 0.5:
+                            shoe_item = Shoe(max(0, enemy.x), max(0, enemy.y))
+                        else:
+                            shoe_item = Shield(max(0, enemy.x), max(0, enemy.y))
+                        shoe_dropped_this_level = True
+                        # Prevent any further per-room drop calculations
+                        current_room_drop_index = None
                     enemies.remove(enemy)
                     player.points += 1
                 bullets.remove(bullet)
