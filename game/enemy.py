@@ -49,6 +49,11 @@ class Enemy:
             self.frames = self.load_sheet("enemy3.png", 100, 100)
             if self.frames:
                 self.current_sprite = self.frames[0]
+        elif self.enemy_type == EnemyType.BOSS:
+            # Use coal-boss.png for boss enemy (200x200)
+            self.frames = self.load_sheet("coal-boss.png", 200, 200)
+            if self.frames:
+                self.current_sprite = self.frames[0]
 
         # Boss shooting mechanics
         self.is_boss = (enemy_type == EnemyType.BOSS)
@@ -114,7 +119,9 @@ class Enemy:
 
         total_width = total_hearts * heart_size + (total_hearts - 1) * spacing
         x0 = self.x + (self.size - total_width) // 2
-        y0 = self.y - heart_size - 4
+        # Move hearts further up for boss to avoid collision with large sprite
+        extra_offset = 40 if self.is_boss else 0
+        y0 = self.y - heart_size - 4 - extra_offset
 
         # Compute how many hearts are fully/partially filled based on current HP in units of 10
         shown_hp = max(0, min(self.hp, self.max_hp))
@@ -165,7 +172,7 @@ class Enemy:
                 sprite_rect = self.current_sprite.get_rect(center=(int(self.x + self.size // 2), int(self.y + self.size // 2)))
                 screen.blit(self.current_sprite, sprite_rect)
         else:
-            # Draw colored square for BOSS (no sprite)
+            # Fallback: Draw colored square if no sprite loaded
             pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
 
         # Draw crown for boss
@@ -186,7 +193,7 @@ class Enemy:
 
     def update(self, player_x, player_y, enemy_bullets=None):
         # Update animation for all enemies with frames
-        if (self.enemy_type == EnemyType.WEAK or self.enemy_type == EnemyType.MEDIUM or self.enemy_type == EnemyType.STRONG) and self.frames:
+        if self.frames:
             self.frame_timer += 1
             if self.frame_timer >= self.frame_speed:
                 self.frame_timer = 0
@@ -206,12 +213,12 @@ class Enemy:
         vy /= normalize_factor
 
         # Track facing direction based on horizontal movement
-        # vx > 0 means enemy is to the right of player, so moving left (towards player) - normal sprite
-        # vx < 0 means enemy is to the left of player, so moving right (towards player) - flip sprite
+        # vx > 0 means enemy is to the right of player, so moving left (towards player) - face right
+        # vx < 0 means enemy is to the left of player, so moving right (towards player) - face left
         if vx > 0:
-            self.facing_left = False  # Moving left - normal sprite
+            self.facing_left = False  # Enemy is right of player, moving left - face right (normal sprite)
         elif vx < 0:
-            self.facing_left = True  # Moving right - flip sprite
+            self.facing_left = True  # Enemy is left of player, moving right - face left (flipped)
 
         # updating position
         new_x = self.x - vx * self.movement
