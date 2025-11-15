@@ -4,6 +4,7 @@ from player import *
 from enemy_spawner import *
 from notification import *
 from bullet import *
+from enemy_bullet import EnemyBullet
 from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
@@ -163,22 +164,26 @@ def start_new_game():
     player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
     player = Player(player_start_x, player_start_y)
 
-    # Reset dynamic game state
-    enemies = []
-    level = 1
-    enemy_spawner = EnemySpawner(level, room_manager)
-    notifications = []
-    bullets = []
-    bullets_cooldown = 0
-    damage_cooldown = 0
-    blood_systems = []
+enemies = []
+level = 1
+enemy_spawner = EnemySpawner(level, room_manager)
+notifications = []
+bullets = []
+enemy_bullets = []  # Boss projectiles
+bullets_cooldown = 0
+damage_cooldown = 0
+blood_systems = []
+# Track visited rooms
+visited_rooms = {0}  # Start room is visited
 
-    # Rooms progress
-    visited_rooms = {0}
-    cleared_rooms = set()
+# Track cleared rooms (where all enemies were killed)
+cleared_rooms = set()
 
-    # HUD
-    hud = HeartsHUD()
+# Track if boss was killed and next level is available
+boss_killed = False
+current_level = 1
+
+hud = HeartsHUD()
 
 
 
@@ -312,11 +317,14 @@ while running:
     clock.tick(FPS)
     screen.fill((0, 0, 0))
 
+    # Draw room background image if loaded
     if room_background:
+        # Scale image to fit screen
         scaled_bg = pygame.transform.scale(room_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_bg, (0, 0))
 
-    room_manager.draw(screen)
+    # Draw room with corridors (pass boss_killed flag)
+    room_manager.draw(screen, boss_killed)
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -349,10 +357,6 @@ while running:
         else:
             # Room is cleared, don't spawn enemies
             enemy_spawner.enemies_spawned_in_room = enemy_spawner.max_enemies_for_room
-        # Add notifications
-        notifications.append(
-            Notification(player.x, player.y, "New Room!", "cyan", font)
-        )
         # Add notification showing room number
         notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
 
@@ -364,11 +368,17 @@ while running:
     # Check if room is now cleared (all enemies killed)
     if room_manager.current_room_id not in cleared_rooms and enemy_spawner.enemies_spawned_in_room >= enemy_spawner.max_enemies_for_room and len(enemies) == 0:
         cleared_rooms.add(room_manager.current_room_id)
-        notifications.append(Notification(player.x, player.y, "Room Cleared!", "green", font))
+
+        # Check if boss room (room 5) was cleared
+        if room_manager.current_room_id == 5:
+            boss_killed = True
+            notifications.append(Notification(player.x, player.y, "NASTĘPNY POZIOM!", "gold", font))
+        else:
+            notifications.append(Notification(player.x, player.y, "Room Cleared!", "green", font))
 
 
     for enemy in enemies:
-        enemy.update(player.x, player.y)
+        enemy.update(player.x, player.y, enemy_bullets)
         enemy.draw(screen)
         if damage_cooldown <= 0 and player.hit_box.collide(enemy.hit_box):
             player.hp = max(0, player.hp - enemy.ad)
@@ -390,6 +400,19 @@ while running:
         if not blood_system.is_alive():
             blood_systems.remove(blood_system)
 
+    # Update and draw enemy bullets
+    for eb in enemy_bullets[:]:
+        eb.update()
+        eb.draw(screen)
+        # Remove if out of screen
+        if eb.x < 0 or eb.x > SCREEN_WIDTH or eb.y < 0 or eb.y > SCREEN_HEIGHT:
+            enemy_bullets.remove(eb)
+        # Check collision with player
+        elif damage_cooldown <= 0 and player.hit_box.collide(eb.hit_box):
+            player.hp = max(0, player.hp - eb.ad)
+            damage_cooldown = int(FPS * 0.75)
+            enemy_bullets.remove(eb)
+
     bullets_cooldown -= 1
     damage_cooldown = max(0, damage_cooldown - 1)
     for bullet in bullets[:]:
@@ -407,6 +430,10 @@ while running:
     visited_text = font.render(f"Visited: {sorted(visited_rooms)}", True, (200, 200, 200))
     screen.blit(visited_text, (SCREEN_WIDTH - visited_text.get_width() - 20, 60))
 
+    # Display current level
+    level_text = font.render(f"Level: {current_level}", True, (255, 215, 0))
+    screen.blit(level_text, (20, 100))
+
     # Display cleared rooms
     if cleared_rooms:
         cleared_text = font.render(f"Cleared: {sorted(cleared_rooms)}", True, (100, 255, 100))
@@ -421,6 +448,7 @@ while running:
                     blood_systems.append(BloodParticleSystem(enemy.x, enemy.y, num_particles=25))
                     enemies.remove(enemy)
                     player.points += 1
+                notifications.append(Notification(bullet.x, bullet.y, 10, "gold", font))
                 bullets.remove(bullet)
                 break
 

@@ -4,10 +4,11 @@ Enemy types with different stats
 from enum import Enum
 
 class EnemyType(Enum):
-    """Three types of enemies with different difficulty"""
+    """Four types of enemies with different difficulty"""
     WEAK = 1      # Weakest - 6 enemies, dies in 3 hits
     MEDIUM = 2    # Medium - 4 enemies, dies in 5 hits
-    STRONG = 3    # Strongest - 2 enemies, dies in 8 hits
+    STRONG = 3    # Strong - 2 enemies, dies in 8 hits
+    BOSS = 4      # Boss - 1 enemy, dies in 20 hits, shoots projectiles
 
 
 class EnemyTypeConfig:
@@ -24,7 +25,7 @@ class EnemyTypeConfig:
         },
         EnemyType.MEDIUM: {
             'hp': 50,           # 5 hits * 10 damage = 50 HP
-            'ad': 15,           # Attack damage
+            'ad': 10,           # Attack damage
             'speed': 2.5,       # Movement speed
             'count': 4,         # Number of enemies to spawn
             'color': (255, 200, 100),  # Orange
@@ -37,6 +38,15 @@ class EnemyTypeConfig:
             'count': 2,         # Number of enemies to spawn
             'color': (255, 100, 100),  # Red
             'size': 48
+        },
+        EnemyType.BOSS: {
+            'hp': 200,          # 20 hits * 10 damage = 200 HP
+            'ad': 30,           # Attack damage
+            'speed': 1.5,       # Slower than normal enemies
+            'count': 1,         # Only 1 boss
+            'color': (150, 0, 150),  # Purple
+            'size': 64,         # Larger size
+            'shoot_cooldown': 120  # Shoots every 2 seconds (60 FPS * 2)
         }
     }
 

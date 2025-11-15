@@ -45,6 +45,16 @@ class Enemy:
             if self.frames:
                 self.current_sprite = self.frames[0]
 
+        # Boss shooting mechanics
+        self.is_boss = (enemy_type == EnemyType.BOSS)
+        if self.is_boss:
+            self.shoot_cooldown = 0
+            self.shoot_cooldown_max = config.get('shoot_cooldown', 120)
+            # Burst fire mechanics
+            self.burst_count = 0  # Current bullet in burst (0-2)
+            self.burst_delay = 12  # Frames between shots in burst (12 frames = 0.20s at 60 FPS)
+            self.burst_delay_counter = 0
+
         # Prepare heart icons once (shared)
         self._ensure_hearts_loaded()
 
@@ -153,6 +163,21 @@ class Enemy:
             # Draw colored square for other enemy types (STRONG)
             pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
 
+        pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
+
+        # Draw crown for boss
+        if self.is_boss:
+            crown_color = (255, 215, 0)  # Gold
+            crown_y = self.y - 10
+            crown_x = self.x + self.size // 2
+            pygame.draw.polygon(screen, crown_color, [
+                (crown_x - 8, crown_y),
+                (crown_x, crown_y - 8),
+                (crown_x + 8, crown_y),
+                (crown_x + 6, crown_y + 4),
+                (crown_x - 6, crown_y + 4)
+            ])
+
         # Draw hearts above enemy
         self._draw_enemy_hearts(screen)
 
@@ -165,6 +190,7 @@ class Enemy:
                 self.frame_index = (self.frame_index + 1) % len(self.frames)
                 self.current_sprite = self.frames[self.frame_index]
 
+    def update(self, player_x, player_y, enemy_bullets=None):
         # calculating direction to the player
         vx = self.x - player_x
         vy = self.y - player_y
@@ -196,3 +222,49 @@ class Enemy:
         self.x = new_x
         self.y = new_y
         self.hit_box.update_position(self.x, self.y)
+
+        # Boss shooting - burst fire (3 bullets in quick succession)
+        if self.is_boss and enemy_bullets is not None:
+            # Main cooldown between bursts
+            self.shoot_cooldown -= 1
+
+            # Burst firing logic
+            if self.shoot_cooldown <= 0 and self.burst_count < 3:
+                self.burst_delay_counter -= 1
+
+                if self.burst_delay_counter <= 0:
+                    # Fire shotgun spread (3 bullets at once)
+                    from enemy_bullet import EnemyBullet
+                    import math
+
+                    boss_center_x = self.x + self.size // 2
+                    boss_center_y = self.y + self.size // 2
+
+                    # Calculate angle to player
+                    dx = player_x - boss_center_x
+                    dy = player_y - boss_center_y
+                    base_angle = math.atan2(dy, dx)
+
+                    # Shotgun spread: 3 bullets with 37 degree spread
+                    spread_angle = math.radians(37)  # 37 degrees to each side
+                    angles = [
+                        base_angle - spread_angle,  # Left
+                        base_angle,                  # Center
+                        base_angle + spread_angle    # Right
+                    ]
+
+                    for angle in angles:
+                        distance = 500
+                        target_x = boss_center_x + math.cos(angle) * distance
+                        target_y = boss_center_y + math.sin(angle) * distance
+
+                        bullet = EnemyBullet(boss_center_x, boss_center_y, target_x, target_y)
+                        enemy_bullets.append(bullet)
+
+                    self.burst_count += 1
+                    self.burst_delay_counter = self.burst_delay
+
+                    # If burst is complete, reset cooldown
+                    if self.burst_count >= 3:
+                        self.shoot_cooldown = self.shoot_cooldown_max
+                        self.burst_count = 0
