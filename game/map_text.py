@@ -100,3 +100,22 @@ class EuroAsiaMapText(MapText):
             color=(0, 255, 0)  # Bright radioactive green
         )
 
+
+class NorthSouthAmericaMapText(MapText):
+    """Specific class for NORTH AND SOUTH AMERICA text on map2.png"""
+
+    def __init__(self):
+        """Initialize NORTH AND SOUTH AMERICA text positioned over the Americas on the map"""
+        # Position approximately over North/South America (left side of map)
+        # Assuming map is roughly 1200x800, Americas are on the left side
+        americas_x = 350  # Adjust this based on your map
+        americas_y = 600  # Adjust this based on your map
+
+        super().__init__(
+            text="NORTH AND SOUTH AMERICA",
+            position=(americas_x, americas_y),
+            font_size=25,  # Slightly smaller to fit the longer text
+            color=(0, 255, 0)  # Bright radioactive green
+        )
+
+

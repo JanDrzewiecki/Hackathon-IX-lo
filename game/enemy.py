@@ -228,9 +228,19 @@ class Enemy:
         if self.room:
             new_x, new_y = self.room.clamp_position(new_x, new_y, self.size)
 
+        # Store old position for collision detection
+        old_x = self.x
+        old_y = self.y
+
+        # Temporarily update position and hitbox to check collisions
         self.x = new_x
         self.y = new_y
         self.hit_box.update_position(self.x, self.y)
+
+        # Check collision with other enemies - revert if collision detected
+        # This will be called from main.py with the enemies list
+
+        # Position is updated here, but may be reverted in check_enemy_collisions if needed
 
         # Boss shooting - burst fire (3 bullets in quick succession)
         if self.is_boss and enemy_bullets is not None:
@@ -277,3 +287,56 @@ class Enemy:
                     if self.burst_count >= 3:
                         self.shoot_cooldown = self.shoot_cooldown_max
                         self.burst_count = 0
+
+    def check_collision_with_enemies(self, other_enemies):
+        """Check if this enemy collides with any other enemy and revert position if needed.
+
+        Args:
+            other_enemies: List of all enemies (including self)
+        """
+        for other in other_enemies:
+            # Skip self
+            if other is self:
+                continue
+
+            # Check if hitboxes collide
+            if self.hit_box.collide(other.hit_box):
+                # Collision detected! Push enemies apart
+                # Calculate vector from other enemy to this enemy
+                dx = self.x - other.x
+                dy = self.y - other.y
+                distance = (dx**2 + dy**2)**0.5
+
+                if distance == 0:
+                    # Enemies are at exact same position, push randomly
+                    import random
+                    dx = random.choice([-1, 1])
+                    dy = random.choice([-1, 1])
+                    distance = 1.414  # sqrt(2)
+
+                # Normalize
+                dx /= distance
+                dy /= distance
+
+                # Push apart by minimum separation distance
+                min_separation = (self.size + other.size) // 2
+                overlap = min_separation - distance
+
+                if overlap > 0:
+                    # Push this enemy away from other enemy
+                    push_distance = (overlap / 2) + 1  # Split the push
+                    self.x += dx * push_distance
+                    self.y += dy * push_distance
+
+                    # Clamp to room boundaries
+                    if self.room:
+                        self.x, self.y = self.room.clamp_position(self.x, self.y, self.size)
+
+                    # Update hitbox
+                    self.hit_box.update_position(self.x, self.y)
+
+                # Only handle one collision per frame to avoid jittering
+                return True
+
+        return False
+
