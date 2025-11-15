@@ -6,9 +6,11 @@ class Player:
     def __init__(self, player_start_x, player_start_y):
         self.x = player_start_x
         self.y = player_start_y
-        self.hp = 60
+        self.hp = 10000000000000
+        # self.hp = 60
         self.max_hp = self.hp
-        self.ad = 20
+        self.ad = 2000000000000
+        # self.ad = 20
         self.movement = 5
         self.points = 0
 
@@ -81,11 +83,11 @@ class Player:
         # Aktualizuj hit_box z nową pozycją
         self.hit_box.update_position(self.x, self.y)
 
-        # Count enemies alive
+        # Count enemies alive in current room
         enemies_alive = len(enemies) if enemies is not None else 0
 
-        # Sprawdź kolizje ze ścianami (including blocked corridors)
-        collision = room_manager.check_wall_collision(self.hit_box, visited_rooms, enemies_alive)
+        # Sprawdź kolizje ze ścianami (corridors blocked if enemies alive)
+        collision = room_manager.check_wall_collision(self.hit_box, enemies_alive)
 
         if collision:
             # Cofnij ruch przy kolizji
@@ -95,9 +97,12 @@ class Player:
             self.hit_box.update_position(old_x, old_y)
             return False
 
+        # Check if player reached the special NEXT LEVEL corridor (boss room) - CHECK THIS FIRST!
+        if boss_killed and room_manager.check_special_corridor(self.x, self.y, int(URANEK_FRAME_WIDTH * 0.7)):
+            return "next_level"  # Special return value
 
         # Sprawdź teleportację do innego pokoju
-        did_teleport = room_manager.check_room_transition(self, visited_rooms, enemies_alive)
+        did_teleport = room_manager.check_room_transition(self, enemies_alive)
 
         return did_teleport
 

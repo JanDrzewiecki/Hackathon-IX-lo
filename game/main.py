@@ -528,8 +528,14 @@ while running:
         scaled_bg = pygame.transform.scale(room_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_bg, (0, 0))
 
-    # Draw room with corridors (pass boss_killed flag)
-    room_manager.draw(screen, boss_killed)
+    # Check if current room is cleared
+    room_cleared = room_manager.current_room_id in cleared_rooms
+
+    # Update door animation
+    room_manager.update_door_animation(room_cleared)
+
+    # Draw room with corridors (doors close behind you until you clear the room)
+    room_manager.draw(screen, boss_killed, room_cleared)
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -549,6 +555,13 @@ while running:
 
     did_teleport = player.update(keys, room_manager, visited_rooms, enemies, boss_killed)
 
+    # Handle special corridor (NEXT LEVEL after boss)
+    if did_teleport == "next_level":
+        # Player reached the NEXT LEVEL corridor - show map
+        show_map(screen, map_image)
+        # After map, restart game or continue
+        start_new_game()
+        continue
 
     # Handle room transition
     if did_teleport:
