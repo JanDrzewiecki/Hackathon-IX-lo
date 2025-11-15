@@ -567,7 +567,32 @@ def start_new_game(keep_current_level=False):
     # Create player in center of game area
     player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
     player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
+
+    # If we're keeping the current level, preserve the player's HP (so hearts don't regenerate on level change)
+    old_hp = None
+    old_max_hp = None
+    if keep_current_level and 'player' in globals() and player is not None:
+        try:
+            old_hp = int(player.hp)
+            old_max_hp = int(player.max_hp)
+        except Exception:
+            old_hp = player.hp
+            old_max_hp = player.max_hp
+
     player = Player(player_start_x, player_start_y)
+
+    # Restore preserved HP (do not regenerate hearts when moving to next level)
+    if old_hp is not None:
+        # Restore max_hp first, then clamp current hp to that max
+        try:
+            player.max_hp = int(old_max_hp)
+        except Exception:
+            player.max_hp = old_max_hp
+        # Ensure hp stays within valid range
+        try:
+            player.hp = max(0, min(int(old_hp), int(player.max_hp)))
+        except Exception:
+            player.hp = old_hp
 
     # Initialize all game state variables
     enemies = []
