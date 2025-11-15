@@ -254,28 +254,21 @@ class HeartsHUD:
             y = self.y0 + max(0, (heart_h - self._shoe_size) // 2)
             # Icon
             surface.blit(self._shoe_icon, (draw_x, y))
-            # Charges text (e.g., x3)
-            charges_txt = f"x{max(0, int(speed_boost_charges or 0))}"
+            # Charges text (e.g., x3) with activation key hint
+            charges_txt = f"x{max(0, int(speed_boost_charges or 0))} (E)"
             charges_surf = self._font_small.render(charges_txt, True, (255, 255, 255))
             cx = draw_x + self._shoe_size + 10
             cy = y + (self._shoe_size - charges_surf.get_height()) // 2
             surface.blit(charges_surf, (cx, cy))
             end_x = cx + charges_surf.get_width()
-            # If active, show countdown box after charges
+            # If active, show countdown after charges (transparent background)
             if shoe_active:
                 secs = int(max(0, speed_boost_seconds))
                 text_surf = self._font_small.render(str(secs), True, (255, 255, 255))
-                pad_x = 8
-                pad_y = 4
-                box_w = text_surf.get_width() + pad_x * 2
-                box_h = text_surf.get_height() + pad_y * 2
-                box_y = y + (self._shoe_size - box_h) // 2
                 box_x = end_x + 10
-                bg = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-                bg.fill((0, 0, 0, 140))
-                surface.blit(bg, (box_x, box_y))
-                surface.blit(text_surf, (box_x + pad_x, box_y + pad_y))
-                end_x = box_x + box_w
+                box_y = y + (self._shoe_size - text_surf.get_height()) // 2
+                surface.blit(text_surf, (box_x, box_y))
+                end_x = box_x + text_surf.get_width()
             draw_x = (end_x + 20) if 'end_x' in locals() else (draw_x + self._shoe_size + 60)
 
         # Draw shield icon, charges and countdown after the shoe block

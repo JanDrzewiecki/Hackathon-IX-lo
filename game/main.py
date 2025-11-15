@@ -423,6 +423,7 @@ def start_new_game(keep_current_level=False):
         keep_current_level: If True, preserve the current_level value (for level transitions)
     """
     global room_manager, player, enemies, level, enemy_spawner, notifications
+    global shoe_item, speed_boost_timer, original_movement, shoe_dropped_this_level, speed_boost_charges, _prev_e_pressed, _prev_r_pressed, shield_timer, shield_charges
     global shoe_item, speed_boost_timer, original_movement, current_room_death_counter, current_room_drop_index, shoe_dropped_this_level, speed_boost_charges, _prev_e_pressed, _prev_r_pressed, shield_timer, shield_charges
     global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level, room_background
 
@@ -729,7 +730,7 @@ while running:
         # Reset enemy spawner for new room's enemy type (only if room not cleared)
         if room_manager.current_room_id not in cleared_rooms:
             enemy_spawner.reset_for_new_room()
-            # Reset per-room shoe drop state (boss-only drop: no random per-room index)
+            # Reset item on ground for new room
             shoe_item = None
             current_room_death_counter = 0
             current_room_drop_index = None
