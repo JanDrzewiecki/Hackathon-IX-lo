@@ -285,7 +285,7 @@ class Enemy:
                     else:
                         # Fire full auto during firing phase
                         if self.shoot_cooldown <= 0:
-                            from enemy_bullet import EnemyBullet
+                            from src.entities.enemy_bullet import EnemyBullet
 
                             boss_center_x = self.x + self.size // 2
                             boss_center_y = self.y + self.size // 2
@@ -308,7 +308,7 @@ class Enemy:
                 # Olejman Boss (level 3) - Single shot with cooldown (no burst)
                 if self.level == 3:
                     if self.shoot_cooldown <= 0:
-                        from enemy_bullet import EnemyBullet
+                        from src.entities.enemy_bullet import EnemyBullet
 
                         boss_center_x = self.x + self.size // 2
                         boss_center_y = self.y + self.size // 2
@@ -326,7 +326,7 @@ class Enemy:
                         self.burst_delay_counter -= 1
 
                         if self.burst_delay_counter <= 0:
-                            from enemy_bullet import EnemyBullet
+                            from src.entities.enemy_bullet import EnemyBullet
                             import math
 
                             boss_center_x = self.x + self.size // 2

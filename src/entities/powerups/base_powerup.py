@@ -16,7 +16,7 @@ class BasePowerUp(ABC):
         self.size = size
         self.alive = True
         self.sprite: pygame.Surface = None
-        self.hit_box = HitBox(self.x, self.y, r=20, size_offset=size // 2)
+        self.hit_box = HitBox(self.x, self.y, radius=20, size_offset=size // 2)
         self._load_sprite()
     
     @abstractmethod
