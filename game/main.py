@@ -688,6 +688,8 @@ while running:
 
     for enemy in enemies:
         enemy.update(player.x, player.y, enemy_bullets)
+         # Check collision with other enemies and push apart if needed
+        enemy.check_collision_with_enemies(enemies)
         enemy.draw(screen)
         if damage_cooldown <= 0 and player.hit_box.collide(enemy.hit_box):
             player.hp = max(0, player.hp - enemy.ad)
