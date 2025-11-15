@@ -1,4 +1,5 @@
 import pygame
+import random
 from pygame.locals import *
 from player import *
 from enemy_spawner import *
@@ -20,16 +21,41 @@ pygame.display.set_caption("Hackaton Game")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Calibri.ttf", 30)
 
-# Load room background image
-try:
-    room_background = pygame.image.load("game/room-1.png").convert()
-except:
-    # If loading fails, try without 'game/' prefix
-    try:
-        room_background = pygame.image.load("room-1.png").convert()
-    except:
-        room_background = None
-        print("Warning: Could not load room-1.png")
+class RoomBackgroundManager:
+    """Prosta klasa do losowania tła pokoi"""
+    def __init__(self):
+        self.backgrounds = []
+        self.load_backgrounds()
+
+    def load_backgrounds(self):
+        """Ładuje wszystkie 3 tła room-1, room-2, room-3"""
+        for i in range(1, 4):
+            try:
+                bg = pygame.image.load(f"game/room-{i}.png").convert()
+                self.backgrounds.append(bg)
+                print(f"✓ Załadowano room-{i}.png")
+            except:
+                try:
+                    bg = pygame.image.load(f"room-{i}.png").convert()
+                    self.backgrounds.append(bg)
+                    print(f"✓ Załadowano room-{i}.png")
+                except:
+                    print(f"✗ Nie można załadować room-{i}.png")
+
+        print(f"📦 Załadowano {len(self.backgrounds)} tła")
+
+    def get_random_background(self):
+        """Zwraca losowe tło z listy"""
+        if self.backgrounds:
+            bg = random.choice(self.backgrounds)
+            idx = self.backgrounds.index(bg) + 1
+            print(f"🎲 Wylosowano tło: room-{idx}.png")
+            return bg
+        return None
+
+# Stwórz manager tła i pobierz pierwsze losowe tło
+bg_manager = RoomBackgroundManager()
+room_background = bg_manager.get_random_background()
 
 # Load map image
 try:
@@ -312,9 +338,10 @@ def show_map(screen, map_image, level_num=1, show_text=True, text_class=None):
             if event.type == QUIT:
                 pygame.quit()
                 exit()
-            if not animating and event.type == KEYDOWN:
-                # Allow skipping the map with any key if no animation has started
-                return
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                # Only ESC to quit
+                pygame.quit()
+                exit()
             if not animating and event.type == MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = event.pos
                 # If text exists, check if it was clicked, otherwise allow clicking anywhere
@@ -394,10 +421,13 @@ def start_new_game(keep_current_level=False):
         keep_current_level: If True, preserve the current_level value (for level transitions)
     """
     global room_manager, player, enemies, level, enemy_spawner, notifications
-    global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level
+    global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level, room_background
 
     # Store current level if we need to keep it
     saved_level = current_level if keep_current_level else 1
+
+    # 🎲 LOSUJ NOWE TŁO przy każdym starcie gry!
+    room_background = bg_manager.get_random_background()
 
     # Create room manager with corridors
     room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
@@ -656,6 +686,9 @@ while running:
 
     # Handle room transition
     if did_teleport:
+        # 🎲 Losuj nowe tło pokoju przy przejściu do nowego pokoju
+        room_background = bg_manager.get_random_background()
+
         # Mark new room as visited
         visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
