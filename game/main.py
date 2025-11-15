@@ -871,9 +871,9 @@ while running:
             result = show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
             if result == "skip_to_level_3":
                 current_level = 3  # Skip to level 3
-        elif current_level == 3:
-            # Level 3: Show map with AFRICA text in the center
-            result = show_map(screen, map_image, level_num=3, show_text=True, text_class=AfricaMapText)
+        elif current_level == 3 and map3_image:
+            # Level 3: Show map3 with AFRICA text in the center
+            result = show_map(screen, map3_image, level_num=3, show_text=True, text_class=AfricaMapText)
             if result == "skip_to_level_3":
                 current_level = 3  # Already level 3
         elif current_level == 4 and map4_image:

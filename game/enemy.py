@@ -391,8 +391,6 @@ class Enemy:
                             if self.burst_count >= 3:
                                 self.shoot_cooldown = self.shoot_cooldown_max
                                 self.burst_count = 0
-                            self.shoot_cooldown = self.shoot_cooldown_max
-                            self.burst_count = 0
 
     def check_collision_with_enemies(self, other_enemies):
         """Check if this enemy collides with any other enemy and revert position if needed.
