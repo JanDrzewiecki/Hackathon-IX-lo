@@ -672,6 +672,9 @@ def start_new_game(keep_current_level=False):
     saved_strength_charges = strength_charges if keep_current_level else 0
     saved_powerup_type = last_powerup_type if keep_current_level else None
 
+    # Store player HP if transitioning between levels (DON'T regenerate HP!)
+    saved_hp = player.hp if (keep_current_level and player is not None) else None
+
     # 🎲 RANDOMIZE NEW BACKGROUND on each game start (according to level)!
     room_background = bg_manager.get_random_background(level=saved_level)
 
@@ -686,6 +689,11 @@ def start_new_game(keep_current_level=False):
     player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
     player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
     player = Player(player_start_x, player_start_y)
+
+    # Restore player HP if transitioning between levels (DON'T regenerate HP!)
+    if saved_hp is not None:
+        player.hp = saved_hp
+        print(f"💚 HP nie regeneruje się! Poziom {saved_level}: {saved_hp}/{player.max_hp} HP")
 
     # Initialize all game state variables
     enemies = []
@@ -1165,7 +1173,7 @@ while running:
                 print(f"DEBUG: FALLBACK - Using default map.png for level {current_level}")
                 result = show_map(screen, map_image, level_num=current_level)
                 if result == "skip_to_level_3":
-                    current_level = 3  # Override to level 3
+                    current_level = 4  # Override to level 3
             # After map, restart game for next level, keeping the current_level
             start_new_game(keep_current_level=True)
             continue
@@ -1176,8 +1184,8 @@ while running:
         if gravestones:
             room_gravestones[old_room_id] = gravestones.copy()
 
-        # 🎲 Randomize new room background on transition to new room (according to level)
-        room_background = bg_manager.get_random_background(level=current_level)
+        # Background stays the same - no randomization on room transition
+        # room_background = bg_manager.get_random_background(level=current_level)
 
         # Mark new room as visited
         visited_rooms.add(room_manager.current_room_id)

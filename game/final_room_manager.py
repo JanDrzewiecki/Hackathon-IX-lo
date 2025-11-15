@@ -151,7 +151,7 @@ class FinalRoomManager:
                     victory_font = pygame.font.SysFont(None, 48)
                     victory_text = victory_font.render("VICTORY!", True, (255, 215, 0))
                     text_rect = victory_text.get_rect(center=(self.exit_corridor['x'] + self.exit_corridor['width'] // 2,
-                                                             self.exit_corridor['y'] + self.exit_corridor['height'] // 2))
+                                                             self.room_y - 40))
                     screen.blit(victory_text, text_rect)
                 except:
                     pass
@@ -171,13 +171,28 @@ class FinalRoomManager:
 
     def check_exit_transition(self, player_x, player_y, player_size):
         """Check if player is in exit corridor (after boss killed)"""
-        if not self.exit_corridor_open or not self.door_fully_open:
+        if not self.exit_corridor_open:
             return False
 
-        # Check if player reached top of screen through corridor
-        if player_y <= 0:
-            corridor = self.exit_corridor
-            if corridor['x'] <= player_x <= corridor['x'] + corridor['width']:
+        if not self.door_fully_open:
+            return False
+
+        if not self.exit_corridor:
+            return False
+
+        corridor = self.exit_corridor
+
+        # Check if player is in the corridor area (horizontally)
+        in_corridor_x = corridor['x'] <= player_x <= corridor['x'] + corridor['width']
+
+        if in_corridor_x:
+            # Check if player reached the top part of the corridor (allowing some margin)
+            # Player should be able to walk through when they reach near the top
+            player_top = player_y - player_size/2
+            corridor_bottom = corridor['y'] + corridor['height']
+
+            if player_top <= corridor_bottom:
+                print(f"🚪 DEBUG: Gracz przechodzi przez złote drzwi! player_y={player_y}, corridor_bottom={corridor_bottom}")
                 return True
 
         return False
@@ -188,15 +203,6 @@ class FinalRoomManager:
         player_y = player_hitbox.y
         player_r = player_hitbox.r
 
-        # If exit corridor is open and boss is killed, don't block it
-        if boss_killed and self.exit_corridor_open and self.exit_corridor:
-            corridor = self.exit_corridor
-            # Check if player is in exit corridor area
-            if (corridor['x'] <= player_x <= corridor['x'] + corridor['width'] and
-                player_y <= corridor['y'] + corridor['height']):
-                # Don't check walls for exit corridor - allow passage
-                return False
-
         # Check collision with room boundaries (walls)
         # Left wall
         if player_x - player_r < self.room_x:
@@ -204,10 +210,18 @@ class FinalRoomManager:
         # Right wall
         if player_x + player_r > self.room_x + self.room_width:
             return True
-        # Top wall (unless exit corridor is open)
+
+        # Top wall - special handling for exit corridor
         if player_y - player_r < self.room_y:
-            if not (boss_killed and self.exit_corridor_open and self.exit_corridor):
-                return True
+            # If boss is killed and exit corridor is open, check if player is in corridor
+            if boss_killed and self.exit_corridor_open and self.exit_corridor and self.door_fully_open:
+                corridor = self.exit_corridor
+                # Allow passage if player is within corridor horizontal bounds
+                if corridor['x'] - player_r <= player_x <= corridor['x'] + corridor['width'] + player_r:
+                    # Player is in the corridor - allow passage through top wall
+                    return False
+            # Not in corridor or corridor not open - block top wall
+            return True
             # If exit corridor exists, check if player is within corridor bounds
             corridor = self.exit_corridor
             if not (corridor['x'] <= player_x <= corridor['x'] + corridor['width']):
