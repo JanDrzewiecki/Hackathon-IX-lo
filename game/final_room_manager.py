@@ -122,32 +122,39 @@ class FinalRoomManager:
         pygame.draw.rect(screen, (255, 255, 255),
                         (self.room_x, self.room_y, self.room_width, self.room_height), 3)
 
-        # Draw exit corridor if boss is killed
+        # Draw golden exit doors if final boss is killed
         if final_boss_killed and self.exit_corridor:
-            # Draw gate
-            if self.gate_image:
-                # Scale and rotate gate for top position
-                gate_scaled = pygame.transform.scale(self.gate_image,
-                                                    (self.exit_corridor['width'], self.exit_corridor['height']))
-                screen.blit(gate_scaled, (self.exit_corridor['x'], self.exit_corridor['y']))
+            # Draw golden doors (fully open, no animation needed - it's the victory door)
+            if self.gate_image and self.door_fully_open:
+                # Use the last frame (fully open) from doors.png
+                if self.doors_spritesheet:
+                    # Get the last frame (index 4) which is fully open
+                    frame_rect = pygame.Rect((self.door_frame_count - 1) * self.door_sprite_width, 0,
+                                            self.door_sprite_width, self.door_sprite_height)
+                    frame = self.doors_spritesheet.subsurface(frame_rect)
 
-            # Draw doors opening animation
-            if self.doors_spritesheet and not self.door_fully_open:
-                # Calculate which frame to show based on progress
-                frame_index = min(self.door_frame_count - 1,
-                                int(self.door_opening_progress * self.door_frame_count))
+                    # Scale to corridor size
+                    door_scaled = pygame.transform.scale(frame,
+                                                         (self.exit_corridor['width'], self.exit_corridor['height']))
+                    screen.blit(door_scaled, (self.exit_corridor['x'], self.exit_corridor['y']))
+                else:
+                    # Fallback: draw golden rectangle if spritesheet not loaded
+                    pygame.draw.rect(screen, (255, 215, 0),  # Gold color
+                                   (self.exit_corridor['x'], self.exit_corridor['y'],
+                                    self.exit_corridor['width'], self.exit_corridor['height']))
+                    pygame.draw.rect(screen, (255, 255, 255),  # White border
+                                   (self.exit_corridor['x'], self.exit_corridor['y'],
+                                    self.exit_corridor['width'], self.exit_corridor['height']), 5)
 
-                # Extract frame from sprite sheet
-                frame_rect = pygame.Rect(frame_index * self.door_sprite_width, 0,
-                                        self.door_sprite_width, self.door_sprite_height)
-                frame = self.doors_spritesheet.subsurface(frame_rect)
-
-                # Scale to corridor size
-                door_scaled = pygame.transform.scale(frame,
-                                                     (self.exit_corridor['width'], self.exit_corridor['height']))
-
-                # No rotation needed for top (doors are designed for top)
-                screen.blit(door_scaled, (self.exit_corridor['x'], self.exit_corridor['y']))
+                # Add "VICTORY" text above the golden doors
+                try:
+                    victory_font = pygame.font.SysFont(None, 48)
+                    victory_text = victory_font.render("VICTORY!", True, (255, 215, 0))
+                    text_rect = victory_text.get_rect(center=(self.exit_corridor['x'] + self.exit_corridor['width'] // 2,
+                                                             self.exit_corridor['y'] + self.exit_corridor['height'] // 2))
+                    screen.blit(victory_text, text_rect)
+                except:
+                    pass
 
     def clamp_position(self, x, y, size):
         """Clamp entity position to room boundaries"""

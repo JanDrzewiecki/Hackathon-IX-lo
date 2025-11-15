@@ -10,6 +10,7 @@ from room_manager import RoomManager
 from final_room_manager import FinalRoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
+from gravestone import Gravestone
 from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText, AustraliaMapText
 from shoe import Shoe
 from shield import Shield
@@ -26,7 +27,7 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("Calibri.ttf", 30)
 
 class RoomBackgroundManager:
-    """Prosta klasa do losowania tła pokoi z różnymi zestawami dla różnych poziomów"""
+    """Simple class for randomly selecting room backgrounds with different sets for different levels"""
     def __init__(self):
         self.level1_backgrounds = []  # room-1, room-2, room-3
         self.level2_backgrounds = []  # room-4, room-5, room-6
@@ -34,56 +35,56 @@ class RoomBackgroundManager:
         self.load_backgrounds()
 
     def load_backgrounds(self):
-        """Ładuje tła dla poziomu 1 (room-1,2,3), poziomu 2 (room-4,5,6), poziomu 3 (room-7,8,9)"""
+        """Loads backgrounds for level 1 (room-1,2,3), level 2 (room-4,5,6), level 3 (room-7,8,9)"""
         # Level 1: room-1, room-2, room-3
         for i in range(1, 4):
             try:
                 bg = pygame.image.load(f"game/room-{i}.png").convert()
                 self.level1_backgrounds.append(bg)
-                print(f"✓ Załadowano room-{i}.png (Level 1)")
+                print(f"✓ Loaded room-{i}.png (Level 1)")
             except:
                 try:
                     bg = pygame.image.load(f"room-{i}.png").convert()
                     self.level1_backgrounds.append(bg)
-                    print(f"✓ Załadowano room-{i}.png (Level 1)")
+                    print(f"✓ Loaded room-{i}.png (Level 1)")
                 except:
-                    print(f"✗ Nie można załadować room-{i}.png")
+                    print(f"✗ Cannot load room-{i}.png")
 
         # Level 2: room-4, room-5, room-6
         for i in range(4, 7):
             try:
                 bg = pygame.image.load(f"game/room-{i}.png").convert()
                 self.level2_backgrounds.append(bg)
-                print(f"✓ Załadowano room-{i}.png (Level 2)")
+                print(f"✓ Loaded room-{i}.png (Level 2)")
             except:
                 try:
                     bg = pygame.image.load(f"room-{i}.png").convert()
                     self.level2_backgrounds.append(bg)
-                    print(f"✓ Załadowano room-{i}.png (Level 2)")
+                    print(f"✓ Loaded room-{i}.png (Level 2)")
                 except:
-                    print(f"✗ Nie można załadować room-{i}.png")
+                    print(f"✗ Cannot load room-{i}.png")
 
         # Level 3: room-7, room-8, room-9
         for i in range(7, 10):
             try:
                 bg = pygame.image.load(f"game/room-{i}.png").convert()
                 self.level3_backgrounds.append(bg)
-                print(f"✓ Załadowano room-{i}.png (Level 3)")
+                print(f"✓ Loaded room-{i}.png (Level 3)")
             except:
                 try:
                     bg = pygame.image.load(f"room-{i}.png").convert()
                     self.level3_backgrounds.append(bg)
-                    print(f"✓ Załadowano room-{i}.png (Level 3)")
+                    print(f"✓ Loaded room-{i}.png (Level 3)")
                 except:
-                    print(f"✗ Nie można załadować room-{i}.png")
+                    print(f"✗ Cannot load room-{i}.png")
 
-        print(f"📦 Level 1: {len(self.level1_backgrounds)} tła, Level 2: {len(self.level2_backgrounds)} tła, Level 3: {len(self.level3_backgrounds)} tła")
+        print(f"📦 Level 1: {len(self.level1_backgrounds)} backgrounds, Level 2: {len(self.level2_backgrounds)} backgrounds, Level 3: {len(self.level3_backgrounds)} backgrounds")
 
     def get_random_background(self, level=1):
-        """Zwraca losowe tło z listy odpowiedniej dla poziomu
+        """Returns a random background from the list appropriate for the level
 
         Args:
-            level: numer poziomu (1 = room-1,2,3; 2 = room-4,5,6; 3 = room-7,8,9)
+            level: level number (1 = room-1,2,3; 2 = room-4,5,6; 3 = room-7,8,9)
         """
         if level == 1:
             backgrounds = self.level1_backgrounds
@@ -98,11 +99,11 @@ class RoomBackgroundManager:
         if backgrounds:
             bg = random.choice(backgrounds)
             idx = backgrounds.index(bg) + start_idx
-            print(f"🎲 Wylosowano tło: room-{idx}.png (Level {level})")
+            print(f"🎲 Selected background: room-{idx}.png (Level {level})")
             return bg
         return None
 
-# Stwórz manager tła i pobierz pierwsze losowe tło
+# Create background manager and get first random background
 bg_manager = RoomBackgroundManager()
 room_background = bg_manager.get_random_background()
 
@@ -192,6 +193,17 @@ except:
     except:
         map4_image = None
         print("Warning: Could not load map4.png")
+
+# Load map5 image for victory screen
+try:
+    map5_image = pygame.image.load("game/map5.png").convert()
+except:
+    # If loading fails, try without 'game/' prefix
+    try:
+        map5_image = pygame.image.load("map5.png").convert()
+    except:
+        map5_image = None
+        print("Warning: Could not load map5.png")
 
 # Load start screen image
 try:
@@ -513,10 +525,10 @@ def show_map(screen, map_image, level_num=1, show_text=True, text_class=None):
             if region_text:
                 region_text.draw(screen, scale_factor, (0, 0))
                 # Show instruction for clicking on the region text
-                instruction_text = font.render(f"Kliknij na {region_text.text}, aby rozpocząć", True, (255, 255, 255))
+                instruction_text = font.render(f"Click on {region_text.text} to start", True, (255, 255, 255))
             else:
                 # Show generic instruction when no text to click
-                instruction_text = font.render("Kliknij w mapę, aby rozpocząć", True, (255, 255, 255))
+                instruction_text = font.render("Click on the map to start", True, (255, 255, 255))
 
             text_bg_rect = instruction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
             text_bg_rect.inflate_ip(20, 10)
@@ -529,6 +541,112 @@ def show_map(screen, map_image, level_num=1, show_text=True, text_class=None):
 
         pygame.display.update()
         clock.tick(60)
+
+
+def find_non_overlapping_position(x, y, size, existing_gravestones, max_attempts=20):
+    """Find a position near (x, y) that doesn't overlap with existing gravestones.
+
+    Args:
+        x: Initial x position
+        y: Initial y position
+        size: Size of the new gravestone
+        existing_gravestones: List of existing gravestones
+        max_attempts: Maximum number of attempts to find a position
+
+    Returns:
+        tuple: (x, y) position that doesn't overlap
+    """
+    import math
+
+    # Create a temporary gravestone to test positions
+    temp_gravestone = Gravestone(x, y, size)
+
+    # Check if initial position is clear
+    overlaps = False
+    for existing in existing_gravestones:
+        if temp_gravestone.hit_box.collide(existing.hit_box):
+            overlaps = True
+            break
+
+    if not overlaps:
+        return x, y
+
+    # Try spiral pattern around the original position
+    for attempt in range(max_attempts):
+        angle = (attempt / max_attempts) * 2 * math.pi * 2  # Multiple rotations
+        radius = size * 0.5 + (attempt * size * 0.3)  # Increasing radius
+
+        new_x = x + math.cos(angle) * radius
+        new_y = y + math.sin(angle) * radius
+
+        # Update temp gravestone position
+        temp_gravestone.update_position(new_x, new_y)
+
+        # Check if this position is clear
+        overlaps = False
+        for existing in existing_gravestones:
+            if temp_gravestone.hit_box.collide(existing.hit_box):
+                overlaps = True
+                break
+
+        if not overlaps:
+            return new_x, new_y
+
+    # If all attempts failed, return original position (better than nothing)
+    return x, y
+
+
+def find_random_powerup_position(room_manager, existing_gravestones, powerup_size=48, max_attempts=50):
+    """Find a random position for a power-up that avoids borders and gravestones.
+
+    Args:
+        room_manager: RoomManager or FinalRoomManager instance to get room boundaries
+        existing_gravestones: List of existing gravestones to avoid
+        powerup_size: Size of the power-up (default 48x48)
+        max_attempts: Maximum number of attempts to find a position
+
+    Returns:
+        tuple: (x, y) position for the power-up
+    """
+    import random
+
+    # Define the playable area (avoiding borders)
+    # Handle both RoomManager (margin_pixels) and FinalRoomManager (margin)
+    base_margin = getattr(room_manager, 'margin_pixels', None) or getattr(room_manager, 'margin', 100)
+    margin = base_margin + 50  # Extra margin from borders
+    min_x = margin
+    max_x = room_manager.room_x + room_manager.room_width - margin - powerup_size
+    min_y = margin
+    max_y = room_manager.room_y + room_manager.room_height - margin - powerup_size
+
+    # Ensure valid bounds
+    if max_x <= min_x or max_y <= min_y:
+        # Fallback to center if room is too small
+        return (room_manager.room_x + room_manager.room_width // 2,
+                room_manager.room_y + room_manager.room_height // 2)
+
+    # Create a temporary object to test collisions (using Shoe as template)
+    for attempt in range(max_attempts):
+        # Random position within playable area
+        test_x = random.randint(int(min_x), int(max_x))
+        test_y = random.randint(int(min_y), int(max_y))
+
+        # Create temporary shoe to test collision
+        temp_powerup = Shoe(test_x, test_y)
+
+        # Check if this position collides with any gravestone
+        collision = False
+        for gravestone in existing_gravestones:
+            if temp_powerup.hit_box.collide(gravestone.hit_box):
+                collision = True
+                break
+
+        if not collision:
+            return test_x, test_y
+
+    # If all attempts failed, return center of room
+    return (room_manager.room_x + room_manager.room_width // 2,
+            room_manager.room_y + room_manager.room_height // 2)
 
 
 def start_new_game(keep_current_level=False):
@@ -554,7 +672,7 @@ def start_new_game(keep_current_level=False):
     saved_strength_charges = strength_charges if keep_current_level else 0
     saved_powerup_type = last_powerup_type if keep_current_level else None
 
-    # 🎲 LOSUJ NOWE TŁO przy każdym starcie gry (według poziomu)!
+    # 🎲 RANDOMIZE NEW BACKGROUND on each game start (according to level)!
     room_background = bg_manager.get_random_background(level=saved_level)
 
     # Create room manager with corridors
@@ -567,32 +685,7 @@ def start_new_game(keep_current_level=False):
     # Create player in center of game area
     player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
     player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
-
-    # If we're keeping the current level, preserve the player's HP (so hearts don't regenerate on level change)
-    old_hp = None
-    old_max_hp = None
-    if keep_current_level and 'player' in globals() and player is not None:
-        try:
-            old_hp = int(player.hp)
-            old_max_hp = int(player.max_hp)
-        except Exception:
-            old_hp = player.hp
-            old_max_hp = player.max_hp
-
     player = Player(player_start_x, player_start_y)
-
-    # Restore preserved HP (do not regenerate hearts when moving to next level)
-    if old_hp is not None:
-        # Restore max_hp first, then clamp current hp to that max
-        try:
-            player.max_hp = int(old_max_hp)
-        except Exception:
-            player.max_hp = old_max_hp
-        # Ensure hp stays within valid range
-        try:
-            player.hp = max(0, min(int(old_hp), int(player.max_hp)))
-        except Exception:
-            player.hp = old_hp
 
     # Initialize all game state variables
     enemies = []
@@ -604,6 +697,8 @@ def start_new_game(keep_current_level=False):
     bullets_cooldown = 0
     damage_cooldown = 0
     blood_systems = []
+    gravestones = []
+    room_gravestones = {}  # Reset room gravestones dictionary
     visited_rooms = {0}
     cleared_rooms = set()
     boss_killed = False
@@ -668,6 +763,8 @@ enemy_bullets = []
 bullets_cooldown = 0
 damage_cooldown = 0
 blood_systems = []
+gravestones = []
+room_gravestones = {}  # Dictionary to store gravestones per room: {room_id: [gravestone1, gravestone2, ...]}
 visited_rooms = {0}
 cleared_rooms = set()
 boss_killed = False
@@ -813,6 +910,128 @@ def show_game_over(screen, font):
         clock.tick(60)
 
 
+def show_victory_screen(screen, map5_image, font):
+    """Display victory screen with map5.png and play again button in bottom left.
+    Returns 'restart' to play again or 'quit' to exit."""
+
+    if not map5_image:
+        # If map5 image failed to load, use a simple victory screen
+        map5_image = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        map5_image.fill((20, 20, 40))
+
+    # Load play again button image
+    button_img_raw = None
+    try:
+        button_img_raw = pygame.image.load("game/playagainbutton.png").convert_alpha()
+    except Exception:
+        try:
+            button_img_raw = pygame.image.load("playagainbutton.png").convert_alpha()
+        except Exception:
+            button_img_raw = None
+
+    if button_img_raw is not None:
+        raw_w, raw_h = button_img_raw.get_size()
+        # Smaller button for bottom-left corner
+        target_h = int(SCREEN_HEIGHT * 0.12)
+        max_w = int(SCREEN_WIDTH * 0.25)
+        scale = min(target_h / raw_h, max_w / raw_w)
+        new_w = max(1, int(raw_w * scale))
+        new_h = max(1, int(raw_h * scale))
+        button_img = pygame.transform.smoothscale(button_img_raw, (new_w, new_h))
+        button_rect = button_img.get_rect()
+    else:
+        button_img = None
+        button_rect = pygame.Rect(0, 0, 250, 80)
+
+    # Position button in bottom-left corner
+    button_rect.left = 40
+    button_rect.bottom = SCREEN_HEIGHT - 40
+
+    pressed = False
+    press_start = 0
+    press_duration_ms = 180
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                return 'quit'
+            if event.type == KEYDOWN and event.key == K_ESCAPE:
+                return 'quit'
+            if event.type == MOUSEBUTTONDOWN and event.button == 1:
+                if button_rect.collidepoint(event.pos) and not pressed:
+                    pressed = True
+                    press_start = pygame.time.get_ticks()
+
+        # Draw background (map5.png)
+        screen.fill((0, 0, 0))
+        scaled_map = pygame.transform.scale(map5_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.blit(scaled_map, (0, 0))
+
+        # Draw victory text at top
+        try:
+            victory_font = pygame.font.SysFont(None, 120)
+            victory_text = victory_font.render("VICTORY!", True, (255, 215, 0))
+            text_rect = victory_text.get_rect(center=(SCREEN_WIDTH // 2, 100))
+            # Add shadow for better visibility
+            shadow_text = victory_font.render("VICTORY!", True, (0, 0, 0))
+            shadow_rect = shadow_text.get_rect(center=(SCREEN_WIDTH // 2 + 4, 104))
+            screen.blit(shadow_text, shadow_rect)
+            screen.blit(victory_text, text_rect)
+        except:
+            pass
+
+        # ESC hint in top-right
+        hint_text = font.render("ESC - Quit", True, (200, 200, 200))
+        screen.blit(hint_text, (SCREEN_WIDTH - hint_text.get_width() - 20, 20))
+
+        # Calculate button animation
+        progress = 0.0
+        if pressed:
+            elapsed = pygame.time.get_ticks() - press_start
+            progress = max(0.0, min(1.0, elapsed / press_duration_ms))
+
+        scale_factor = 1.0 - 0.08 * progress
+
+        # Draw button in bottom-left
+        if button_img is not None:
+            if scale_factor != 1.0:
+                new_w = max(1, int(button_img.get_width() * scale_factor))
+                new_h = max(1, int(button_img.get_height() * scale_factor))
+                scaled_btn = pygame.transform.smoothscale(button_img, (new_w, new_h))
+                scaled_rect = scaled_btn.get_rect(center=button_rect.center)
+                screen.blit(scaled_btn, scaled_rect.topleft)
+            else:
+                screen.blit(button_img, button_rect.topleft)
+        else:
+            # Fallback: draw simple button
+            hovered = button_rect.collidepoint(pygame.mouse.get_pos()) and not pressed
+            base_color = (60, 140, 60)
+            hover_color = (80, 180, 80)
+            btn_color = hover_color if hovered else base_color
+            draw_rect = button_rect.copy()
+            if scale_factor != 1.0:
+                draw_rect.width = max(1, int(draw_rect.width * scale_factor))
+                draw_rect.height = max(1, int(draw_rect.height * scale_factor))
+                draw_rect.center = button_rect.center
+            pygame.draw.rect(screen, btn_color, draw_rect, border_radius=12)
+            pygame.draw.rect(screen, (255, 255, 255), draw_rect, width=2, border_radius=12)
+            btn_text = font.render("PLAY AGAIN", True, (255, 255, 255))
+            screen.blit(btn_text, (draw_rect.centerx - btn_text.get_width() // 2,
+                                   draw_rect.centery - btn_text.get_height() // 2))
+
+        # Fade overlay during button press
+        if progress > 0.0:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            alpha = int(180 * progress)
+            overlay.fill((0, 0, 0, alpha))
+            screen.blit(overlay, (0, 0))
+            if progress >= 1.0:
+                return 'restart'
+
+        pygame.display.update()
+        clock.tick(60)
+
+
 # Initial game state - Show start screen first
 running = True
 game_started = False
@@ -884,46 +1103,89 @@ while running:
             bullets.append(Bullet(player, mx, my, strength_timer > 0))
             bullets_cooldown = FPS / 3
 
+    # Store player's old position before update
+    old_player_x = player.x
+    old_player_y = player.y
+
+    # Store old room ID before potential room transition
+    old_room_id = room_manager.current_room_id
+
     did_teleport = player.update(keys, room_manager, visited_rooms, enemies, boss_killed)
+
+    # Check collision with gravestones and revert position if colliding
+    for gravestone in gravestones:
+        if player.hit_box.collide(gravestone.hit_box):
+            # Revert player position
+            player.x = old_player_x
+            player.y = old_player_y
+            player.hit_box.update_position(old_player_x, old_player_y)
+            break
 
     # Handle special corridor (NEXT LEVEL after boss)
     if did_teleport == "next_level":
-        # Player reached the NEXT LEVEL corridor - increment level
-        current_level += 1
-        # Show appropriate map based on level
-        if current_level == 2 and map2_image:
-            # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
-            result = show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
-            if result == "skip_to_level_3":
-                current_level = 3  # Skip to level 3
-        elif current_level == 3 and map3_image:
-            # Level 3: Show map3 with AFRICA text in the center
-            result = show_map(screen, map3_image, level_num=3, show_text=True, text_class=AfricaMapText)
-            if result == "skip_to_level_3":
-                current_level = 3  # Already level 3
-        elif current_level == 4 and map4_image:
-            # Level 4: Show map4 with AUSTRALIA text before final boss
-            result = show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
-            if result == "skip_to_level_3":
-                current_level = 3  # Back to level 3
+        # Check if this is level 4 (final boss) - show victory screen instead
+        if current_level == 4:
+            print("DEBUG: Final boss defeated! Showing victory screen")
+            print(f"DEBUG: map5_image is: {map5_image}")
+            print(f"DEBUG: map5_image type: {type(map5_image)}")
+            action = show_victory_screen(screen, map5_image, font)
+            if action == 'quit':
+                running = False
+                break
+            elif action == 'restart':
+                # Restart from beginning (level 1)
+                current_level = 1
+                start_new_game(keep_current_level=False)
+                continue
         else:
-            # Default to map_image
-            result = show_map(screen, map_image, level_num=current_level)
-            if result == "skip_to_level_3":
-                current_level = 3  # Skip to level 3
-        # After map, restart game for next level, keeping the current_level
-        start_new_game(keep_current_level=True)
-        continue
+            # Player reached the NEXT LEVEL corridor - increment level
+            current_level += 1
+            print(f"DEBUG: Transitioning to level {current_level}")
+            # Show appropriate map based on level
+            if current_level == 2 and map2_image:
+                # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
+                print("DEBUG: Using map2.png for level 2")
+                result = show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
+                if result == "skip_to_level_3":
+                    current_level = 3  # Override to level 3
+            elif current_level == 3 and map3_image:
+                # Level 3: Show map3 with AFRICA text in the center
+                print("DEBUG: Using map3.png for level 3")
+                result = show_map(screen, map3_image, level_num=3, show_text=True, text_class=AfricaMapText)
+                if result == "skip_to_level_3":
+                    current_level = 3  # Already level 3
+            elif current_level == 4 and map4_image:
+                # Level 4: Show map4 with AUSTRALIA text before final boss
+                print("DEBUG: Using map4.png for level 4")
+                result = show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
+                if result == "skip_to_level_3":
+                    current_level = 3  # Override to level 3 if P pressed
+            else:
+                # Default to map_image (should not happen for levels 2-4)
+                print(f"DEBUG: FALLBACK - Using default map.png for level {current_level}")
+                result = show_map(screen, map_image, level_num=current_level)
+                if result == "skip_to_level_3":
+                    current_level = 3  # Override to level 3
+            # After map, restart game for next level, keeping the current_level
+            start_new_game(keep_current_level=True)
+            continue
 
     # Handle room transition
     if did_teleport:
-        # 🎲 Losuj nowe tło pokoju przy przejściu do nowego pokoju (według poziomu)
+        # Save gravestones from the old room before leaving
+        if gravestones:
+            room_gravestones[old_room_id] = gravestones.copy()
+
+        # 🎲 Randomize new room background on transition to new room (according to level)
         room_background = bg_manager.get_random_background(level=current_level)
 
         # Mark new room as visited
         visited_rooms.add(room_manager.current_room_id)
         # Clear enemies when changing rooms
         enemies.clear()
+        # Restore gravestones for the new room (or start with empty list)
+        new_room_id = room_manager.current_room_id
+        gravestones = room_gravestones.get(new_room_id, []).copy()
         # Reset enemy spawner for new room's enemy type (only if room not cleared)
         if room_manager.current_room_id not in cleared_rooms:
             enemy_spawner.reset_for_new_room()
@@ -963,21 +1225,16 @@ while running:
 
         # Check if boss room (room 5 for levels 1-3, room 0 for level 4 final boss) was cleared
         if current_level == 4 and room_manager.current_room_id == 0:
-            # Final boss killed on level 4 - END GAME
+            # Final boss killed on level 4
+            boss_killed = True
+            # Create exit corridor in FinalRoomManager
+            if hasattr(room_manager, 'create_exit_corridor'):
+                room_manager.create_exit_corridor()
             notifications.append(Notification(player.x, player.y, "FINAL BOSS DEFEATED!", "gold", font))
-            # Draw notification one last time
-            for notification in notifications:
-                notification.draw(screen)
-            pygame.display.update()
-            # Wait 3 seconds to show the victory message
-            pygame.time.wait(3000)
-            # Quit game
-            pygame.quit()
-            exit()
         elif room_manager.current_room_id == 5:
             # Regular boss killed on levels 1-3
             boss_killed = True
-            notifications.append(Notification(player.x, player.y, "NASTĘPNY POZIOM!", "gold", font))
+            notifications.append(Notification(player.x, player.y, "NEXT LEVEL!", "gold", font))
         else:
             notifications.append(Notification(player.x, player.y, "Room Cleared!", "green", font))
 

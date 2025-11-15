@@ -44,11 +44,11 @@ class Player:
         return frames
 
     def update(self, keys, room_manager, visited_rooms=None, enemies=None, boss_killed=False):
-        # Zapisz poprzednią pozycję
+        # Save previous position
         old_x = self.x
         old_y = self.y
 
-        # Ruch gracza
+        # Player movement
         moved = False
         if keys[pygame.K_w]:
             self.y -= self.movement
@@ -78,17 +78,17 @@ class Player:
             self.current_sprite = self.frames[0]
             return False
 
-        # Aktualizuj hit_box z nową pozycją
+        # Update hit_box with new position
         self.hit_box.update_position(self.x, self.y)
 
         # Count enemies alive in current room
         enemies_alive = len(enemies) if enemies is not None else 0
 
-        # Sprawdź kolizje ze ścianami (corridors blocked if enemies alive)
+        # Check collisions with walls (corridors blocked if enemies alive)
         collision = room_manager.check_wall_collision(self.hit_box, enemies_alive)
 
         if collision:
-            # Cofnij ruch przy kolizji
+            # Revert movement on collision
             print(f"COLLISION! Reverting from ({self.x}, {self.y}) to ({old_x}, {old_y})")
             self.x = old_x
             self.y = old_y
@@ -106,7 +106,7 @@ class Player:
                 if room_manager.check_special_corridor(self.x, self.y, int(URANEK_FRAME_WIDTH * 0.7)):
                     return "next_level"  # Special return value
 
-        # Sprawdź teleportację do innego pokoju (only for regular RoomManager)
+        # Check teleportation to another room (only for regular RoomManager)
         if hasattr(room_manager, 'check_room_transition'):
             did_teleport = room_manager.check_room_transition(self, enemies_alive)
             return did_teleport

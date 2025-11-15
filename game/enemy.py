@@ -248,12 +248,14 @@ class Enemy:
         # Track facing direction based on horizontal movement
         # vx > 0 means enemy is to the right of player, so moving left (towards player) - face right
         # vx < 0 means enemy is to the left of player, so moving right (towards player) - face left
-        # Special case: enemy8 (eye) faces opposite direction
+        # Special cases: enemy6 and enemy8 face opposite direction
+        is_enemy6 = (self.level == 2 and self.enemy_type == EnemyType.STRONG)
         is_enemy8 = (self.level == 3 and self.enemy_type == EnemyType.MEDIUM)
+        needs_flip = is_enemy6 or is_enemy8
         if vx > 0:
-            self.facing_left = True if is_enemy8 else False  # Enemy is right of player, moving left
+            self.facing_left = True if needs_flip else False  # Enemy is right of player, moving left
         elif vx < 0:
-            self.facing_left = False if is_enemy8 else True  # Enemy is left of player, moving right
+            self.facing_left = False if needs_flip else True  # Enemy is left of player, moving right
 
         # updating position
         new_x = self.x - vx * self.movement
