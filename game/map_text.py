@@ -126,8 +126,8 @@ class AfricaMapText(MapText):
         """Initialize AFRICA text positioned in the center of the map"""
         # Position in center of map
         # Assuming map is roughly 1200x800
-        africa_x = 850  # Adjusted: moved 50 pixels right (800 + 50)
-        africa_y = 600  # Adjusted: moved 100 pixels up (700 - 100)
+        africa_x = 900  # Adjusted: moved 50 pixels right (800 + 50)
+        africa_y = 570 # Adjusted: moved 100 pixels up (700 - 100)
 
         super().__init__(
             text="AFRICA",
@@ -135,3 +135,22 @@ class AfricaMapText(MapText):
             font_size=60,  # Large font for dramatic effect
             color=(0, 255, 0)  # Bright radioactive green
         )
+
+
+class AustraliaMapText(MapText):
+    """Specific class for AUSTRALIA text on map4.png for level 4"""
+
+    def __init__(self):
+        """Initialize AUSTRALIA text positioned over Australia on the map"""
+        # Position approximately over Australia (right-bottom area of map)
+        # Assuming map is roughly 1200x800, Australia is in the lower right
+        australia_x = 1200  # Right side of map
+        australia_y = 750# Lower portion of map
+
+        super().__init__(
+            text="AUSTRALIA",
+            position=(australia_x, australia_y),
+            font_size=50,  # Medium-large font
+            color=(0, 255, 0)  # Bright radioactive green
+        )
+

@@ -9,10 +9,9 @@ from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
-from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText
+from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText, AustraliaMapText
 from shoe import Shoe
 from shield import Shield
-from map_text import EuroAsiaMapText, NorthSouthAmericaMapText
 
 pygame.init()
 
@@ -24,40 +23,85 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("Calibri.ttf", 30)
 
 class RoomBackgroundManager:
-    """Prosta klasa do losowania tła pokoi"""
+    """Prosta klasa do losowania tła pokoi z różnymi zestawami dla różnych poziomów"""
     def __init__(self):
-        self.backgrounds = []
+        self.level1_backgrounds = []  # room-1, room-2, room-3
+        self.level2_backgrounds = []  # room-4, room-5, room-6
+        self.level3_backgrounds = []  # room-7, room-8, room-9
         self.load_backgrounds()
 
     def load_backgrounds(self):
-        """Ładuje wszystkie 3 tła room-1, room-2, room-3"""
+        """Ładuje tła dla poziomu 1 (room-1,2,3), poziomu 2 (room-4,5,6), poziomu 3 (room-7,8,9)"""
+        # Level 1: room-1, room-2, room-3
         for i in range(1, 4):
             try:
                 bg = pygame.image.load(f"game/room-{i}.png").convert()
-                self.backgrounds.append(bg)
-                print(f"✓ Załadowano room-{i}.png")
+                self.level1_backgrounds.append(bg)
+                print(f"✓ Załadowano room-{i}.png (Level 1)")
             except:
                 try:
                     bg = pygame.image.load(f"room-{i}.png").convert()
-                    self.backgrounds.append(bg)
-                    print(f"✓ Załadowano room-{i}.png")
+                    self.level1_backgrounds.append(bg)
+                    print(f"✓ Załadowano room-{i}.png (Level 1)")
                 except:
                     print(f"✗ Nie można załadować room-{i}.png")
 
-        print(f"📦 Załadowano {len(self.backgrounds)} tła")
+        # Level 2: room-4, room-5, room-6
+        for i in range(4, 7):
+            try:
+                bg = pygame.image.load(f"game/room-{i}.png").convert()
+                self.level2_backgrounds.append(bg)
+                print(f"✓ Załadowano room-{i}.png (Level 2)")
+            except:
+                try:
+                    bg = pygame.image.load(f"room-{i}.png").convert()
+                    self.level2_backgrounds.append(bg)
+                    print(f"✓ Załadowano room-{i}.png (Level 2)")
+                except:
+                    print(f"✗ Nie można załadować room-{i}.png")
 
-    def get_random_background(self):
-        """Zwraca losowe tło z listy"""
-        if self.backgrounds:
-            bg = random.choice(self.backgrounds)
-            idx = self.backgrounds.index(bg) + 1
-            print(f"🎲 Wylosowano tło: room-{idx}.png")
+        # Level 3: room-7, room-8, room-9
+        for i in range(7, 10):
+            try:
+                bg = pygame.image.load(f"game/room-{i}.png").convert()
+                self.level3_backgrounds.append(bg)
+                print(f"✓ Załadowano room-{i}.png (Level 3)")
+            except:
+                try:
+                    bg = pygame.image.load(f"room-{i}.png").convert()
+                    self.level3_backgrounds.append(bg)
+                    print(f"✓ Załadowano room-{i}.png (Level 3)")
+                except:
+                    print(f"✗ Nie można załadować room-{i}.png")
+
+        print(f"📦 Level 1: {len(self.level1_backgrounds)} tła, Level 2: {len(self.level2_backgrounds)} tła, Level 3: {len(self.level3_backgrounds)} tła")
+
+    def get_random_background(self, level=1):
+        """Zwraca losowe tło z listy odpowiedniej dla poziomu
+
+        Args:
+            level: numer poziomu (1 = room-1,2,3; 2 = room-4,5,6; 3 = room-7,8,9)
+        """
+        if level == 1:
+            backgrounds = self.level1_backgrounds
+            start_idx = 1
+        elif level == 2:
+            backgrounds = self.level2_backgrounds
+            start_idx = 4
+        else:  # level 3+
+            backgrounds = self.level3_backgrounds
+            start_idx = 7
+
+        if backgrounds:
+            bg = random.choice(backgrounds)
+            idx = backgrounds.index(bg) + start_idx
+            print(f"🎲 Wylosowano tło: room-{idx}.png (Level {level})")
             return bg
         return None
 
 # Stwórz manager tła i pobierz pierwsze losowe tło
 bg_manager = RoomBackgroundManager()
-room_background = bg_manager.get_random_background()
+room_background = bg_manager.get_random_background(level=1)
 
 # Load power-up icons for HUD
 shoe_icon = None
@@ -103,6 +147,28 @@ except:
     except:
         map2_image = None
         print("Warning: Could not load map2.png")
+
+# Load map3 image for level 3
+try:
+    map3_image = pygame.image.load("game/map3.png").convert()
+except:
+    # If loading fails, try without 'game/' prefix
+    try:
+        map3_image = pygame.image.load("map3.png").convert()
+    except:
+        map3_image = None
+        print("Warning: Could not load map3.png")
+
+# Load map4 image for level 4
+try:
+    map4_image = pygame.image.load("game/map4.png").convert()
+except:
+    # If loading fails, try without 'game/' prefix
+    try:
+        map4_image = pygame.image.load("map4.png").convert()
+    except:
+        map4_image = None
+        print("Warning: Could not load map4.png")
 
 # Load start screen image
 try:
@@ -459,8 +525,8 @@ def start_new_game(keep_current_level=False):
     saved_shield_charges = shield_charges if keep_current_level else 0
     saved_powerup_type = last_powerup_type if keep_current_level else None
 
-    # 🎲 LOSUJ NOWE TŁO przy każdym starcie gry!
-    room_background = bg_manager.get_random_background()
+    # 🎲 LOSUJ NOWE TŁO przy każdym starcie gry (według poziomu)!
+    room_background = bg_manager.get_random_background(level=saved_level)
 
     # Create room manager with corridors
     room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
@@ -740,9 +806,12 @@ while running:
         if current_level == 2 and map2_image:
             # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
             show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
-        elif current_level == 3:
-            # Level 3: Show map with AFRICA text in the center
-            show_map(screen, map_image, level_num=3, show_text=True, text_class=AfricaMapText)
+        elif current_level == 3 and map3_image:
+            # Level 3: Show map3 with AFRICA text in the center
+            show_map(screen, map3_image, level_num=3, show_text=True, text_class=AfricaMapText)
+        elif current_level == 4 and map4_image:
+            # Level 4: Show map4 with AUSTRALIA text
+            show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
         else:
             # Default to map_image
             show_map(screen, map_image, level_num=current_level)
@@ -752,8 +821,8 @@ while running:
 
     # Handle room transition
     if did_teleport:
-        # 🎲 Losuj nowe tło pokoju przy przejściu do nowego pokoju
-        room_background = bg_manager.get_random_background()
+        # 🎲 Losuj nowe tło pokoju przy przejściu do nowego pokoju (według poziomu)
+        room_background = bg_manager.get_random_background(level=current_level)
 
         # Mark new room as visited
         visited_rooms.add(room_manager.current_room_id)
