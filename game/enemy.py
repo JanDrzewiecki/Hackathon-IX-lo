@@ -60,9 +60,14 @@ class Enemy:
                 self.frames = self.load_sheet("coal-boss.png", 200, 200)
             if self.frames:
                 self.current_sprite = self.frames[0]
+        elif self.enemy_type == EnemyType.FINAL_BOSS:
+            # Level 3: Final Boss (200x200)
+            self.frames = self.load_sheet("final-boss.png", 200, 200)
+            if self.frames:
+                self.current_sprite = self.frames[0]
 
         # Boss shooting mechanics
-        self.is_boss = (enemy_type == EnemyType.BOSS)
+        self.is_boss = (enemy_type == EnemyType.BOSS or enemy_type == EnemyType.FINAL_BOSS)
         if self.is_boss:
             self.shoot_cooldown = 0
             self.shoot_cooldown_max = config.get('shoot_cooldown', 120)

@@ -7,11 +7,13 @@ from bullet import *
 from enemy_bullet import EnemyBullet
 from settings import *
 from room_manager import RoomManager
+from final_room_manager import FinalRoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
 from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText, AustraliaMapText
 from shoe import Shoe
 from shield import Shield
+from map_text import EuroAsiaMapText, NorthSouthAmericaMapText
 from strength import Strength
 
 pygame.init()
@@ -102,7 +104,7 @@ class RoomBackgroundManager:
 
 # Stwórz manager tła i pobierz pierwsze losowe tło
 bg_manager = RoomBackgroundManager()
-room_background = bg_manager.get_random_background(level=1)
+room_background = bg_manager.get_random_background()
 
 # Load power-up icons for HUD
 shoe_icon = None
@@ -454,10 +456,13 @@ def show_map(screen, map_image, level_num=1, show_text=True, text_class=None):
                 # Only ESC to quit
                 pygame.quit()
                 exit()
+            if event.type == KEYDOWN and event.key == K_p:
+                # P key to skip to level 3 (for testing)
+                return "skip_to_level_3"
             if not animating and event.type == MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = event.pos
-                # If text exists, check if it was clicked, otherwise allow clicking anywhere
-                if region_text is None or region_text.is_clicked(mouse_pos):
+                # Only allow clicking if text exists AND was clicked
+                if region_text is not None and region_text.is_clicked(mouse_pos):
                     # Start zoom animation toward clicked point
                     click_pos = mouse_pos
                     anim_start_ms = pygame.time.get_ticks()
@@ -552,7 +557,11 @@ def start_new_game(keep_current_level=False):
     room_background = bg_manager.get_random_background(level=saved_level)
 
     # Create room manager with corridors
-    room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
+    # For level 4 (after 3 bosses), use FinalRoomManager (single room with final boss)
+    if saved_level == 4:
+        room_manager = FinalRoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
+    else:
+        room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
 
     # Create player in center of game area
     player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
@@ -773,8 +782,14 @@ game_started = False
 while running and not game_started:
     action = show_start_screen(screen, start_screen_image)
     if action == 'start':
-        show_map(screen, map_image)
-        start_new_game()
+        result = show_map(screen, map_image)
+        if result == "skip_to_level_3":
+            # P key was pressed - start at level 3
+            current_level = 3
+            start_new_game(keep_current_level=True)
+        else:
+            # Normal start at level 1
+            start_new_game()
         game_started = True
     elif action == 'about':
         result = show_about_screen(screen, font)
@@ -788,8 +803,9 @@ while running:
     clock.tick(FPS)
     screen.fill((0, 0, 0))
 
-    # Draw room background image if loaded
-    if room_background:
+    # Draw room background image if loaded (only for regular rooms, not final room)
+    # FinalRoomManager draws its own background in draw() method
+    if room_background and not isinstance(room_manager, FinalRoomManager):
         # Scale image to fit screen
         scaled_bg = pygame.transform.scale(room_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_bg, (0, 0))
@@ -839,16 +855,24 @@ while running:
         # Show appropriate map based on level
         if current_level == 2 and map2_image:
             # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
-            show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
-        elif current_level == 3 and map3_image:
-            # Level 3: Show map3 with AFRICA text in the center
-            show_map(screen, map3_image, level_num=3, show_text=True, text_class=AfricaMapText)
+            result = show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
+            if result == "skip_to_level_3":
+                current_level = 3  # Override to level 3
+        elif current_level == 3:
+            # Level 3: Show map with AFRICA text in the center
+            result = show_map(screen, map_image, level_num=3, show_text=True, text_class=AfricaMapText)
+            if result == "skip_to_level_3":
+                current_level = 3  # Already level 3
         elif current_level == 4 and map4_image:
-            # Level 4: Show map4 with AUSTRALIA text
-            show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
+            # Level 4: Show map4 with AUSTRALIA text before final boss
+            result = show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
+            if result == "skip_to_level_3":
+                current_level = 3  # Override to level 3 if P pressed
         else:
             # Default to map_image
-            show_map(screen, map_image, level_num=current_level)
+            result = show_map(screen, map_image, level_num=current_level)
+            if result == "skip_to_level_3":
+                current_level = 3  # Override to level 3
         # After map, restart game for next level, keeping the current_level
         start_new_game(keep_current_level=True)
         continue
@@ -888,8 +912,16 @@ while running:
     if room_manager.current_room_id not in cleared_rooms and enemy_spawner.enemies_spawned_in_room >= enemy_spawner.max_enemies_for_room and len(enemies) == 0:
         cleared_rooms.add(room_manager.current_room_id)
 
-        # Check if boss room (room 5) was cleared
-        if room_manager.current_room_id == 5:
+        # Check if boss room (room 5 for levels 1-3, room 0 for level 4 final boss) was cleared
+        if current_level == 4 and room_manager.current_room_id == 0:
+            # Final boss killed on level 4
+            boss_killed = True
+            # Create exit corridor in FinalRoomManager
+            if hasattr(room_manager, 'create_exit_corridor'):
+                room_manager.create_exit_corridor()
+            notifications.append(Notification(player.x, player.y, "FINAL BOSS DEFEATED!", "gold", font))
+        elif room_manager.current_room_id == 5:
+            # Regular boss killed on levels 1-3
             boss_killed = True
             notifications.append(Notification(player.x, player.y, "NASTĘPNY POZIOM!", "gold", font))
         else:
