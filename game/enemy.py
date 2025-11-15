@@ -69,13 +69,16 @@ class Enemy:
             if level == 2:
                 # Level 2: Trash Boss (100x200)
                 self.frames = self.load_sheet("trash-boss.png", 100, 200)
+            elif level == 3:
+                # Level 3: Olejman Boss (400x200 = 4 frames of 100x200)
+                self.frames = self.load_sheet("olejman-boss.png", 100, 200)
             else:
                 # Level 1 (and others): Coal Boss (200x200)
                 self.frames = self.load_sheet("coal-boss.png", 200, 200)
             if self.frames:
                 self.current_sprite = self.frames[0]
         elif self.enemy_type == EnemyType.FINAL_BOSS:
-            # Level 3: Final Boss (200x200)
+            # Final Boss sprite sheet is 800x200 - 4 frames of 200x200
             self.frames = self.load_sheet("final-boss.png", 200, 200)
             if self.frames:
                 self.current_sprite = self.frames[0]
@@ -84,13 +87,24 @@ class Enemy:
         self.is_boss = (enemy_type == EnemyType.BOSS or enemy_type == EnemyType.FINAL_BOSS)
         if self.is_boss:
             self.shoot_cooldown = 0
-            self.shoot_cooldown_max = config.get('shoot_cooldown', 120)
+            # Olejman Boss (level 3) has longer cooldown: 2 seconds (120 frames at 60 FPS)
+            if level == 3:
+                self.shoot_cooldown_max = FPS * 2  # 2 seconds for Olejman Boss
+            else:
+                self.shoot_cooldown_max = config.get('shoot_cooldown', 120)
             # Burst fire mechanics
             self.burst_count = 0  # Current bullet in burst (0-2)
             self.burst_delay = 12  # Frames between shots in burst (12 frames = 0.20s at 60 FPS)
             self.burst_delay_counter = 0
             # Fire sprite cycling for trash boss (level 2)
             self.fire_sprite_index = 0  # Cycles between 0, 1, 2 for trash-boss-fire1/2/3
+
+            # Final boss (level 4) - Cycle shooting mechanics
+            if enemy_type == EnemyType.FINAL_BOSS:
+                self.firing_phase_duration = FPS * 5  # 5 seconds of shooting (300 frames at 60 FPS)
+                self.cooldown_phase_duration = FPS * 2  # 2 seconds of cooldown (120 frames at 60 FPS)
+                self.phase_timer = 0  # Current timer in phase
+                self.is_firing_phase = True  # Start in firing phase
 
         # Prepare heart icons once (shared)
         self._ensure_hearts_loaded()
@@ -263,69 +277,122 @@ class Enemy:
 
         # Position is updated here, but may be reverted in check_enemy_collisions if needed
 
-        # Boss shooting - burst fire (3 bullets in quick succession)
+        # Boss shooting - burst fire (3 bullets in quick succession) for regular bosses
+        # Full auto (continuous single shots) for final boss
         if self.is_boss and enemy_bullets is not None:
-            # Main cooldown between bursts
+            # Main cooldown between shots
             self.shoot_cooldown -= 1
 
-            # Burst firing logic
-            if self.shoot_cooldown <= 0 and self.burst_count < 3:
-                self.burst_delay_counter -= 1
+            # FINAL BOSS - Full auto with cycling phases (5s shooting, 2s cooldown)
+            if self.level == 4:
+                # Update phase timer
+                self.phase_timer += 1
 
-                if self.burst_delay_counter <= 0:
-                    from enemy_bullet import EnemyBullet
-                    import math
-
-                    boss_center_x = self.x + self.size // 2
-                    boss_center_y = self.y + self.size // 2
-
-                    if self.level == 2:
-                        # TRASH BOSS - Fire in 8 directions (every 45 degrees), one bullet per direction
-                        num_directions = 8
-                        for i in range(num_directions):
-                            direction_angle = math.radians(i * 45)  # Convert to radians
-
-                            distance = 500
-                            target_x = boss_center_x + math.cos(direction_angle) * distance
-                            target_y = boss_center_y + math.sin(direction_angle) * distance
-
-                            # Pass level and fire_sprite_index to bullet
-                            bullet = EnemyBullet(boss_center_x, boss_center_y, target_x, target_y,
-                                               level=self.level, fire_sprite_index=self.fire_sprite_index)
-                            enemy_bullets.append(bullet)
-
-                        # Cycle fire sprite for trash boss (0 -> 1 -> 2 -> 0)
-                        self.fire_sprite_index = (self.fire_sprite_index + 1) % 3
+                if self.is_firing_phase:
+                    # FIRING PHASE (5 seconds)
+                    if self.phase_timer >= self.firing_phase_duration:
+                        # Switch to cooldown phase
+                        self.is_firing_phase = False
+                        self.phase_timer = 0
                     else:
-                        # COAL BOSS - Fire shotgun spread (3 bullets) towards player
-                        dx = player_x - boss_center_x
-                        dy = player_y - boss_center_y
-                        base_angle = math.atan2(dy, dx)
+                        # Fire full auto during firing phase
+                        if self.shoot_cooldown <= 0:
+                            from enemy_bullet import EnemyBullet
 
-                        # Shotgun spread: 3 bullets with 37 degree spread
-                        spread_angle = math.radians(37)  # 37 degrees to each side
-                        angles = [
-                            base_angle - spread_angle,  # Left
-                            base_angle,                  # Center
-                            base_angle + spread_angle    # Right
-                        ]
+                            boss_center_x = self.x + self.size // 2
+                            boss_center_y = self.y + self.size // 2
 
-                        for angle in angles:
-                            distance = 500
-                            target_x = boss_center_x + math.cos(angle) * distance
-                            target_y = boss_center_y + math.sin(angle) * distance
-
-                            bullet = EnemyBullet(boss_center_x, boss_center_y, target_x, target_y,
+                            # Fire single bullet directly at player (full auto)
+                            bullet = EnemyBullet(boss_center_x, boss_center_y, player_x, player_y,
                                                level=self.level, fire_sprite_index=0)
                             enemy_bullets.append(bullet)
 
-                    self.burst_count += 1
-                    self.burst_delay_counter = self.burst_delay
+                            # Reset cooldown for next shot (very fast for full auto)
+                            self.shoot_cooldown = self.shoot_cooldown_max
+                else:
+                    # COOLDOWN PHASE (2 seconds) - no shooting
+                    if self.phase_timer >= self.cooldown_phase_duration:
+                        # Switch back to firing phase
+                        self.is_firing_phase = True
+                        self.phase_timer = 0
+            else:
+                # REGULAR BOSSES - Burst fire or single shot logic
+                # Olejman Boss (level 3) - Single shot with cooldown (no burst)
+                if self.level == 3:
+                    if self.shoot_cooldown <= 0:
+                        from enemy_bullet import EnemyBullet
 
-                    # If burst is complete, reset cooldown
-                    if self.burst_count >= 3:
+                        boss_center_x = self.x + self.size // 2
+                        boss_center_y = self.y + self.size // 2
+
+                        # OLEJMAN BOSS - Fire single huge bullet directly at player
+                        bullet = EnemyBullet(boss_center_x, boss_center_y, player_x, player_y,
+                                           level=self.level, fire_sprite_index=0)
+                        enemy_bullets.append(bullet)
+
+                        # Reset cooldown (2 seconds)
                         self.shoot_cooldown = self.shoot_cooldown_max
-                        self.burst_count = 0
+                else:
+                    # OTHER BOSSES - Burst fire logic (3 bullets in quick succession)
+                    if self.shoot_cooldown <= 0 and self.burst_count < 3:
+                        self.burst_delay_counter -= 1
+
+                        if self.burst_delay_counter <= 0:
+                            from enemy_bullet import EnemyBullet
+                            import math
+
+                            boss_center_x = self.x + self.size // 2
+                            boss_center_y = self.y + self.size // 2
+
+                            if self.level == 2:
+                                # TRASH BOSS - Fire in 8 directions (every 45 degrees), one bullet per direction
+                                num_directions = 8
+                                for i in range(num_directions):
+                                    direction_angle = math.radians(i * 45)  # Convert to radians
+
+                                    distance = 500
+                                    target_x = boss_center_x + math.cos(direction_angle) * distance
+                                    target_y = boss_center_y + math.sin(direction_angle) * distance
+
+                                    # Pass level and fire_sprite_index to bullet
+                                    bullet = EnemyBullet(boss_center_x, boss_center_y, target_x, target_y,
+                                                       level=self.level, fire_sprite_index=self.fire_sprite_index)
+                                    enemy_bullets.append(bullet)
+
+                                # Cycle fire sprite for trash boss (0 -> 1 -> 2 -> 0)
+                                self.fire_sprite_index = (self.fire_sprite_index + 1) % 3
+                            else:
+                                # COAL BOSS (level 1) - Fire shotgun spread (3 bullets) towards player
+                                dx = player_x - boss_center_x
+                                dy = player_y - boss_center_y
+                                base_angle = math.atan2(dy, dx)
+
+                                # Shotgun spread: 3 bullets with 37 degree spread
+                                spread_angle = math.radians(37)  # 37 degrees to each side
+                                angles = [
+                                    base_angle - spread_angle,  # Left
+                                    base_angle,                  # Center
+                                    base_angle + spread_angle    # Right
+                                ]
+
+                                for angle in angles:
+                                    distance = 500
+                                    target_x = boss_center_x + math.cos(angle) * distance
+                                    target_y = boss_center_y + math.sin(angle) * distance
+
+                                    bullet = EnemyBullet(boss_center_x, boss_center_y, target_x, target_y,
+                                                       level=self.level, fire_sprite_index=0)
+                                    enemy_bullets.append(bullet)
+
+                            self.burst_count += 1
+                            self.burst_delay_counter = self.burst_delay
+
+                            # If burst is complete, reset cooldown
+                            if self.burst_count >= 3:
+                                self.shoot_cooldown = self.shoot_cooldown_max
+                                self.burst_count = 0
+                            self.shoot_cooldown = self.shoot_cooldown_max
+                            self.burst_count = 0
 
     def check_collision_with_enemies(self, other_enemies):
         """Check if this enemy collides with any other enemy and revert position if needed.

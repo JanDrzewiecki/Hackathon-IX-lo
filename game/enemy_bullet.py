@@ -9,7 +9,8 @@ class EnemyBullet:
     # Cached sprites for different boss types
     _coal_sprite = None  # Level 1 coal boss fire
     _trash_sprites = [None, None, None]  # Level 2 trash boss fires (1, 2, 3)
-    _final_sprite = None  # Level 3 final boss fire
+    _olejman_sprite = None  # Level 3 olejman boss fire
+    _final_sprite_frames = None  # Level 4 final boss fire animation frames
     _sprite_size = 48  # Size of the fireball sprite (scaled for visibility)
 
     def __init__(self, enemy_x, enemy_y, target_x, target_y, level=1, fire_sprite_index=0):
@@ -28,12 +29,20 @@ class EnemyBullet:
             self.vx /= normalize_factor
             self.vy /= normalize_factor
 
-        self.r = 16  # Bullet radius (increased for sprite)
+        # Bullet radius - much larger for Olejman boss (level 3)
+        self.r = 100 if level == 3 else 16  # 100 for 200x200 sprite, 16 for normal
         self.movement = 6  # Speed (increased from 4 to 6 - faster by ~0.3s)
         self.hit_box = HitBox(self.x, self.y, self.r, self.r)
 
         # Calculate rotation angle for sprite
         self.angle = math.degrees(math.atan2(self.vy, self.vx))
+
+        # Animation properties for final boss
+        self.frame_index = 0
+        self.frame_timer = 0
+        self.frame_speed = 5  # Animation speed (lower = faster)
+        self.frames = None
+        self.current_sprite = None
 
         # Load appropriate sprite based on level
         self._load_sprite()
@@ -56,21 +65,32 @@ class EnemyBullet:
                         EnemyBullet._trash_sprites[i] = None
             # Set current sprite for this bullet
             self.sprite = EnemyBullet._trash_sprites[self.fire_sprite_index]
-        elif self.level == 4:
-            # Final boss (level 4)
-            if EnemyBullet._final_sprite is None:
+        elif self.level == 3:
+            # Olejman boss (level 3) - Huge 200x200 bullet
+            if EnemyBullet._olejman_sprite is None:
                 try:
                     try:
-                        sprite = pygame.image.load("game/final-boss-fire.png").convert_alpha()
+                        sprite = pygame.image.load("game/olejman-boss-fire.png").convert_alpha()
                     except:
-                        sprite = pygame.image.load("final-boss-fire.png").convert_alpha()
-                    EnemyBullet._final_sprite = pygame.transform.smoothscale(sprite, (self._sprite_size, self._sprite_size))
+                        sprite = pygame.image.load("olejman-boss-fire.png").convert_alpha()
+                    # Scale to 200x200 (huge bullet)
+                    EnemyBullet._olejman_sprite = pygame.transform.smoothscale(sprite, (200, 200))
                 except Exception as e:
-                    print(f"Error loading final-boss-fire.png: {e}")
-                    EnemyBullet._final_sprite = None
-            self.sprite = EnemyBullet._final_sprite
+                    print(f"Error loading olejman-boss-fire.png: {e}")
+                    EnemyBullet._olejman_sprite = None
+            self.sprite = EnemyBullet._olejman_sprite
+        elif self.level == 4:
+            # Final boss (level 4) - Load animated sprite sheet (600x100 = 4 frames of 150x100)
+            if EnemyBullet._final_sprite_frames is None:
+                EnemyBullet._final_sprite_frames = self._load_sheet("final-boss-fire.png", 150, 100)
+
+            # Each bullet gets its own frames (reference to cached frames)
+            self.frames = EnemyBullet._final_sprite_frames
+            if self.frames:
+                self.current_sprite = self.frames[0]
+            self.sprite = None  # Don't use single sprite for final boss
         else:
-            # Coal boss (level 1 and 3) and default
+            # Coal boss (level 1) and default
             if EnemyBullet._coal_sprite is None:
                 try:
                     try:
@@ -83,8 +103,40 @@ class EnemyBullet:
                     EnemyBullet._coal_sprite = None
             self.sprite = EnemyBullet._coal_sprite
 
+    def _load_sheet(self, path, frame_width, frame_height):
+        """Load sprite sheet and split it into individual frames (for final boss animation)"""
+        try:
+            try:
+                sheet = pygame.image.load(f"game/{path}").convert_alpha()
+            except:
+                sheet = pygame.image.load(path).convert_alpha()
+
+            sheet_width, sheet_height = sheet.get_size()
+            cols = sheet_width // frame_width
+            frames = []
+
+            for col in range(cols):
+                rect = pygame.Rect(col * frame_width, 0, frame_width, frame_height)
+                frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
+                frame.blit(sheet, (0, 0), rect)
+                # Scale frame to sprite size
+                scaled_frame = pygame.transform.smoothscale(frame, (self._sprite_size, self._sprite_size))
+                frames.append(scaled_frame)
+
+            return frames
+        except Exception as e:
+            print(f"Error loading sprite sheet {path}: {e}")
+            return []
+
     def draw(self, screen):
-        if self.sprite:
+        # For final boss (level 4), use animated sprite
+        if self.level == 4 and self.current_sprite:
+            # Rotate sprite to face direction of movement
+            rotated_sprite = pygame.transform.rotate(self.current_sprite, -self.angle)
+            sprite_rect = rotated_sprite.get_rect(center=(int(self.x), int(self.y)))
+            screen.blit(rotated_sprite, sprite_rect)
+        elif self.sprite:
+            # For other bosses, use single sprite
             # Rotate sprite to face direction of movement
             rotated_sprite = pygame.transform.rotate(self.sprite, -self.angle)
             sprite_rect = rotated_sprite.get_rect(center=(int(self.x), int(self.y)))
@@ -94,6 +146,15 @@ class EnemyBullet:
             pygame.draw.circle(screen, (255, 50, 50), (int(self.x), int(self.y)), self.r)
 
     def update(self):
+        # Update animation for final boss bullets
+        if self.level == 4 and self.frames:
+            self.frame_timer += 1
+            if self.frame_timer >= self.frame_speed:
+                self.frame_timer = 0
+                self.frame_index = (self.frame_index + 1) % len(self.frames)
+                self.current_sprite = self.frames[self.frame_index]
+
+        # Update position
         self.x += self.vx * self.movement
         self.y += self.vy * self.movement
         self.hit_box.update_position(self.x, self.y)

@@ -870,7 +870,7 @@ while running:
             # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
             result = show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
             if result == "skip_to_level_3":
-                current_level = 3  # Override to level 3
+                current_level = 3  # Skip to level 3
         elif current_level == 3:
             # Level 3: Show map with AFRICA text in the center
             result = show_map(screen, map_image, level_num=3, show_text=True, text_class=AfricaMapText)
@@ -880,12 +880,12 @@ while running:
             # Level 4: Show map4 with AUSTRALIA text before final boss
             result = show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
             if result == "skip_to_level_3":
-                current_level = 3  # Override to level 3 if P pressed
+                current_level = 3  # Back to level 3
         else:
             # Default to map_image
             result = show_map(screen, map_image, level_num=current_level)
             if result == "skip_to_level_3":
-                current_level = 3  # Override to level 3
+                current_level = 3  # Skip to level 3
         # After map, restart game for next level, keeping the current_level
         start_new_game(keep_current_level=True)
         continue
@@ -938,12 +938,17 @@ while running:
 
         # Check if boss room (room 5 for levels 1-3, room 0 for level 4 final boss) was cleared
         if current_level == 4 and room_manager.current_room_id == 0:
-            # Final boss killed on level 4
-            boss_killed = True
-            # Create exit corridor in FinalRoomManager
-            if hasattr(room_manager, 'create_exit_corridor'):
-                room_manager.create_exit_corridor()
+            # Final boss killed on level 4 - END GAME
             notifications.append(Notification(player.x, player.y, "FINAL BOSS DEFEATED!", "gold", font))
+            # Draw notification one last time
+            for notification in notifications:
+                notification.draw(screen)
+            pygame.display.update()
+            # Wait 3 seconds to show the victory message
+            pygame.time.wait(3000)
+            # Quit game
+            pygame.quit()
+            exit()
         elif room_manager.current_room_id == 5:
             # Regular boss killed on levels 1-3
             boss_killed = True

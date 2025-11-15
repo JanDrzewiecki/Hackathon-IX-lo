@@ -57,7 +57,7 @@ class EnemyTypeConfig:
             'count': 1,         # Only 1 final boss
             'color': (200, 0, 0),  # Red
             'size': 64,         # Larger size
-            'shoot_cooldown': 75  # Shoots every 1.25 seconds - faster than regular boss
+            'shoot_cooldown': 20  # Shoots every 0.33 seconds (fast full-auto) - much faster than regular boss
         }
     }
 
