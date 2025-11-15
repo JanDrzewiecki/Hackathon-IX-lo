@@ -59,11 +59,11 @@ class Player:
         if keys[pygame.K_a]:
             self.x -= self.movement
             moved = True
-            self.facing_left = False  # Player is moving left (normal sprite)
+            self.facing_left = True  # Player is moving left (flip sprite)
         if keys[pygame.K_d]:
             self.x += self.movement
             moved = True
-            self.facing_left = True  # Player is moving right (flip sprite)
+            self.facing_left = False  # Player is moving right (normal sprite)
 
         # Update animation if player is moving
         if moved:
