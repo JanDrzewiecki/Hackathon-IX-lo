@@ -98,11 +98,24 @@ class RoomManager:
             'right': 'left'
         }
 
+        # Load gate image for corridors
+        try:
+            self.gate_image = pygame.image.load("game/gate.png").convert_alpha()
+        except:
+            try:
+                self.gate_image = pygame.image.load("gate.png").convert_alpha()
+            except:
+                self.gate_image = None
+                print("Warning: Could not load gate.png")
+
         # Generate 6 rooms with random connections
         self.rooms = self._generate_6_rooms()
 
         # Renumber rooms by distance from room 0
         self._renumber_rooms_by_distance()
+
+        # Force room 5 (farthest) to have BOSS
+        self.rooms[5].enemy_type = EnemyType.BOSS
 
         self.current_room_id = 0
         self.current_room = self.rooms[0]
@@ -309,82 +322,81 @@ class RoomManager:
 
         return walls
 
-    def draw(self, screen):
+    def draw(self, screen, boss_killed=False):
         """Draw room and active corridors"""
-        # Draw corridors
-        for corridor in self.corridors.values():
-            corridor.draw(screen, self.bg_color)
+        # Draw gate images instead of yellow borders
+        if self.gate_image is None:
+            return  # No gates to draw
 
-        # Draw main room
-        pygame.draw.rect(screen, self.bg_color,
-                        (self.room_x, self.room_y, self.room_width, self.room_height))
+        # Draw gate for each corridor
+        for direction, corridor in self.corridors.items():
+            if direction == 'top':
+                # Top corridor - rotate 90 degrees
+                gate_width = corridor.corridor_width
+                gate_height = corridor.corridor_height
+                rotated_gate = pygame.transform.rotate(self.gate_image, -90)
+                scaled_gate = pygame.transform.scale(rotated_gate, (gate_width, gate_height))
+                screen.blit(scaled_gate, (corridor.x, corridor.y))
 
-        # Draw borders (with gaps for corridors)
-        border_thickness = self.border_width
+            elif direction == 'bottom':
+                # Bottom corridor - rotate 270 degrees (-90)
+                gate_width = corridor.corridor_width
+                gate_height = corridor.corridor_height
+                rotated_gate = pygame.transform.rotate(self.gate_image, -270)
+                scaled_gate = pygame.transform.scale(rotated_gate, (gate_width, gate_height))
+                screen.blit(scaled_gate, (corridor.x, corridor.y))
 
-        # Top border
-        if 'top' in self.corridors:
-            top_corridor = self.corridors['top']
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x, self.room_y),
-                            (top_corridor.x, self.room_y), border_thickness)
-            pygame.draw.line(screen, self.border_color,
-                            (top_corridor.x + top_corridor.corridor_width, self.room_y),
-                            (self.room_x + self.room_width, self.room_y), border_thickness)
-        else:
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x, self.room_y),
-                            (self.room_x + self.room_width, self.room_y), border_thickness)
+            elif direction == 'left':
+                # Left corridor - no rotation (0 degrees)
+                gate_width = corridor.corridor_width
+                gate_height = corridor.corridor_height
+                scaled_gate = pygame.transform.scale(self.gate_image, (gate_width, gate_height))
+                screen.blit(scaled_gate, (corridor.x, corridor.y))
 
-        # Bottom border
-        if 'bottom' in self.corridors:
-            bottom_corridor = self.corridors['bottom']
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x, self.room_y + self.room_height),
-                            (bottom_corridor.x, self.room_y + self.room_height), border_thickness)
-            pygame.draw.line(screen, self.border_color,
-                            (bottom_corridor.x + bottom_corridor.corridor_width, self.room_y + self.room_height),
-                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
-        else:
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x, self.room_y + self.room_height),
-                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
+            elif direction == 'right':
+                # Right corridor - rotate 180 degrees
+                gate_width = corridor.corridor_width
+                gate_height = corridor.corridor_height
+                rotated_gate = pygame.transform.rotate(self.gate_image, 180)
+                scaled_gate = pygame.transform.scale(rotated_gate, (gate_width, gate_height))
+                screen.blit(scaled_gate, (corridor.x, corridor.y))
 
-        # Left border
-        if 'left' in self.corridors:
-            left_corridor = self.corridors['left']
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x, self.room_y),
-                            (self.room_x, left_corridor.y), border_thickness)
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x, left_corridor.y + left_corridor.corridor_height),
-                            (self.room_x, self.room_y + self.room_height), border_thickness)
-        else:
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x, self.room_y),
-                            (self.room_x, self.room_y + self.room_height), border_thickness)
+        # If boss killed and in room 5, draw special NEXT LEVEL corridor at bottom
+        if boss_killed and self.current_room_id == 5:
+            # Draw a golden/special corridor at bottom center
+            special_corridor_width = 400
+            special_corridor_x = self.room_x + self.room_width // 2 - special_corridor_width // 2
+            special_corridor_y = self.room_y + self.room_height
+            special_corridor_height = self.screen_height - special_corridor_y
 
-        # Right border
-        if 'right' in self.corridors:
-            right_corridor = self.corridors['right']
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x + self.room_width, self.room_y),
-                            (self.room_x + self.room_width, right_corridor.y), border_thickness)
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x + self.room_width, right_corridor.y + right_corridor.corridor_height),
-                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
-        else:
-            pygame.draw.line(screen, self.border_color,
-                            (self.room_x + self.room_width, self.room_y),
-                            (self.room_x + self.room_width, self.room_y + self.room_height), border_thickness)
+            # Draw golden gate
+            if self.gate_image:
+                rotated_gate = pygame.transform.rotate(self.gate_image, -270)
+                scaled_gate = pygame.transform.scale(rotated_gate, (special_corridor_width, special_corridor_height))
+                # Tint it golden
+                golden_overlay = pygame.Surface((special_corridor_width, special_corridor_height), pygame.SRCALPHA)
+                golden_overlay.fill((255, 215, 0, 100))
+                scaled_gate.blit(golden_overlay, (0, 0), special_flags=pygame.BLEND_ADD)
+                screen.blit(scaled_gate, (special_corridor_x, special_corridor_y))
 
-    def check_corridor_transition(self, player_x, player_y, player_size):
+            # Draw "NEXT LEVEL" text
+            font = pygame.font.SysFont("Arial", 40, bold=True)
+            text = font.render("NEXT LEVEL", True, (255, 215, 0))
+            text_x = special_corridor_x + special_corridor_width // 2 - text.get_width() // 2
+            text_y = special_corridor_y + 50
+            # Draw text shadow
+            shadow = font.render("NEXT LEVEL", True, (0, 0, 0))
+            screen.blit(shadow, (text_x + 2, text_y + 2))
+            screen.blit(text, (text_x, text_y))
+
+    def check_corridor_transition(self, player_x, player_y, player_size, visited_rooms=None, enemies_alive=0):
         """Check if player should move to another room"""
         for direction, corridor in self.corridors.items():
             if corridor.reached_edge(player_x, player_y, player_size,
                                     self.screen_width, self.screen_height):
                 new_room_id = self.current_room.connections[direction]
                 if new_room_id is not None:
+                    # No need to check blocking here - it's already blocked at corridor entrance
                     opposite_direction = self.opposite[direction]
                     new_x, new_y = self._get_spawn_position(opposite_direction, player_size)
 
@@ -462,8 +474,65 @@ class RoomManager:
         """Return room boundaries"""
         return self.room_x, self.room_y, self.room_width, self.room_height
 
-    def check_wall_collision(self, player_hitbox):
+    def can_enter_corridor(self, direction, visited_rooms=None, enemies_alive=0):
+        """Check if player can enter a specific corridor"""
+        if direction not in self.corridors:
+            return False
+
+        # Get the room this corridor leads to
+        target_room_id = self.current_room.connections.get(direction)
+        if target_room_id is None:
+            return False
+
+        # If target room is already visited, always allow entry (can go back)
+        if visited_rooms is not None and target_room_id in visited_rooms:
+            return True
+
+        # If target room is unvisited and there are enemies alive, block
+        if visited_rooms is not None and target_room_id not in visited_rooms and enemies_alive > 0:
+            return False
+
+        # Otherwise allow
+        return True
+
+    def check_wall_collision(self, player_hitbox, visited_rooms=None, enemies_alive=0, boss_killed=False):
         """Check if player (circular hitbox) collides with any wall (rectangle)"""
+        # First check if player is trying to enter a blocked corridor
+        player_x = player_hitbox.x
+        player_y = player_hitbox.y
+
+        # Check each corridor and block if necessary
+        for direction, corridor in self.corridors.items():
+            if not self.can_enter_corridor(direction, visited_rooms, enemies_alive):
+                # This corridor is blocked - treat it as a wall
+                # Check if player is trying to enter the corridor area
+                corridor_rect = pygame.Rect(corridor.x, corridor.y,
+                                            corridor.corridor_width, corridor.corridor_height)
+
+                # Circle-to-rectangle collision for corridor
+                closest_x = max(corridor_rect.x, min(player_x, corridor_rect.x + corridor_rect.width))
+                closest_y = max(corridor_rect.y, min(player_y, corridor_rect.y + corridor_rect.height))
+
+                distance_x = player_x - closest_x
+                distance_y = player_y - closest_y
+                distance_squared = distance_x * distance_x + distance_y * distance_y
+
+                if distance_squared < (player_hitbox.r * player_hitbox.r):
+                    return True  # Collision with blocked corridor
+
+        # If boss killed and in room 5, don't block the special corridor area at bottom
+        if boss_killed and self.current_room_id == 5:
+            special_corridor_width = 400
+            special_corridor_x = self.room_x + self.room_width // 2 - special_corridor_width // 2
+            special_corridor_y = self.room_y + self.room_height
+
+            # Check if player is in special corridor area
+            if (special_corridor_x <= player_x <= special_corridor_x + special_corridor_width and
+                player_y >= special_corridor_y - 50):  # 50px buffer
+                # Don't check walls for special corridor - allow passage
+                return False
+
+        # Then check normal walls
         for wall in self.walls:
             # Check circle-to-rectangle collision
             # Find the closest point on the rectangle to the circle center
@@ -480,13 +549,13 @@ class RoomManager:
                 return True
         return False
 
-    def check_room_transition(self, player):
+    def check_room_transition(self, player, visited_rooms=None, enemies_alive=0):
         """Check if player should transition to a new room and update position"""
         # Get player size - using the scaled URANEK size
         player_size = int(URANEK_FRAME_WIDTH * 0.7)  # matching the scale from settings
 
         should_transition, new_x, new_y, direction = self.check_corridor_transition(
-            player.x, player.y, player_size
+            player.x, player.y, player_size, visited_rooms, enemies_alive
         )
 
         if should_transition:
@@ -497,4 +566,3 @@ class RoomManager:
             return True
 
         return False
-

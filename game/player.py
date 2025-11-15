@@ -39,7 +39,7 @@ class Player:
 
         return frames
 
-    def update(self, keys, room_manager):
+    def update(self, keys, room_manager, visited_rooms=None, enemies=None):
         # Zapisz poprzednią pozycję
         old_x = self.x
         old_y = self.y
@@ -75,8 +75,11 @@ class Player:
         # Aktualizuj hit_box z nową pozycją
         self.hit_box.update_position(self.x, self.y)
 
-        # Sprawdź kolizje ze ścianami
-        collision = room_manager.check_wall_collision(self.hit_box)
+        # Count enemies alive
+        enemies_alive = len(enemies) if enemies is not None else 0
+
+        # Sprawdź kolizje ze ścianami (including blocked corridors)
+        collision = room_manager.check_wall_collision(self.hit_box, visited_rooms, enemies_alive)
 
         if collision:
             # Cofnij ruch przy kolizji
@@ -86,8 +89,9 @@ class Player:
             self.hit_box.update_position(old_x, old_y)
             return False
 
+
         # Sprawdź teleportację do innego pokoju
-        did_teleport = room_manager.check_room_transition(self)
+        did_teleport = room_manager.check_room_transition(self, visited_rooms, enemies_alive)
 
         return did_teleport
 

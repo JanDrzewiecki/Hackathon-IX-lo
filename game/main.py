@@ -4,6 +4,7 @@ from player import *
 from enemy_spawner import *
 from notification import *
 from bullet import *
+from enemy_bullet import EnemyBullet
 from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
@@ -42,6 +43,7 @@ level = 1
 enemy_spawner = EnemySpawner(level, room_manager)
 notifications = []
 bullets = []
+enemy_bullets = []  # Boss projectiles
 bullets_cooldown = 0
 damage_cooldown = 0
 
@@ -50,6 +52,10 @@ visited_rooms = {0}  # Start room is visited
 
 # Track cleared rooms (where all enemies were killed)
 cleared_rooms = set()
+
+# Track if boss was killed and next level is available
+boss_killed = False
+current_level = 1
 
 hud = HeartsHUD()
 
@@ -65,8 +71,8 @@ while running:
         scaled_bg = pygame.transform.scale(room_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_bg, (0, 0))
 
-    # Draw room with corridors
-    room_manager.draw(screen)
+    # Draw room with corridors (pass boss_killed flag)
+    room_manager.draw(screen, boss_killed)
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -88,28 +94,26 @@ while running:
             bullets.append(Bullet(player, mx, my))
             bullets_cooldown = FPS / 3
 
-    did_teleport = player.update(keys, room_manager)
+    did_teleport = player.update(keys, room_manager, visited_rooms, enemies, boss_killed)
 
     # DEBUG: Print player position after update if keys were pressed
     if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_a] or keys[pygame.K_d]:
         print(f"After move: ({player.x:.1f}, {player.y:.1f})")
 
+
     # Handle room transition
     if did_teleport:
         # Mark new room as visited
         visited_rooms.add(room_manager.current_room_id)
-        # Clear enemies when changing rooms
+        # Clear enemies and their bullets when changing rooms
         enemies.clear()
+        enemy_bullets.clear()
         # Reset enemy spawner for new room's enemy type (only if room not cleared)
         if room_manager.current_room_id not in cleared_rooms:
             enemy_spawner.reset_for_new_room()
         else:
             # Room is cleared, don't spawn enemies
             enemy_spawner.enemies_spawned_in_room = enemy_spawner.max_enemies_for_room
-        # Add notifications
-        notifications.append(
-            Notification(player.x, player.y, "New Room!", "cyan", font)
-        )
         # Add notification showing room number
         notifications.append(Notification(player.x, player.y, f"Room {room_manager.current_room_id}", "cyan", font))
 
@@ -121,11 +125,17 @@ while running:
     # Check if room is now cleared (all enemies killed)
     if room_manager.current_room_id not in cleared_rooms and enemy_spawner.enemies_spawned_in_room >= enemy_spawner.max_enemies_for_room and len(enemies) == 0:
         cleared_rooms.add(room_manager.current_room_id)
-        notifications.append(Notification(player.x, player.y, "Room Cleared!", "green", font))
+
+        # Check if boss room (room 5) was cleared
+        if room_manager.current_room_id == 5:
+            boss_killed = True
+            notifications.append(Notification(player.x, player.y, "NASTĘPNY POZIOM!", "gold", font))
+        else:
+            notifications.append(Notification(player.x, player.y, "Room Cleared!", "green", font))
 
 
     for enemy in enemies:
-        enemy.update(player.x, player.y)
+        enemy.update(player.x, player.y, enemy_bullets)
         enemy.draw(screen)
         if damage_cooldown <= 0 and player.hit_box.collide(enemy.hit_box):
             player.hp = max(0, player.hp - enemy.ad)
@@ -138,6 +148,19 @@ while running:
     for bullet in bullets:
         bullet.update(bullets)
         bullet.draw(screen)
+
+    # Update and draw enemy bullets
+    for eb in enemy_bullets[:]:
+        eb.update()
+        eb.draw(screen)
+        # Remove if out of screen
+        if eb.x < 0 or eb.x > SCREEN_WIDTH or eb.y < 0 or eb.y > SCREEN_HEIGHT:
+            enemy_bullets.remove(eb)
+        # Check collision with player
+        elif damage_cooldown <= 0 and player.hit_box.collide(eb.hit_box):
+            player.hp = max(0, player.hp - eb.ad)
+            damage_cooldown = int(FPS * 0.75)
+            enemy_bullets.remove(eb)
 
     bullets_cooldown -= 1
     damage_cooldown = max(0, damage_cooldown - 1)
@@ -155,6 +178,10 @@ while running:
 
     visited_text = font.render(f"Visited: {sorted(visited_rooms)}", True, (200, 200, 200))
     screen.blit(visited_text, (SCREEN_WIDTH - visited_text.get_width() - 20, 60))
+
+    # Display current level
+    level_text = font.render(f"Level: {current_level}", True, (255, 215, 0))
+    screen.blit(level_text, (20, 100))
 
     # Display cleared rooms
     if cleared_rooms:
