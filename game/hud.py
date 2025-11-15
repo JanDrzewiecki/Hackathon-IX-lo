@@ -2,38 +2,40 @@ import os
 import pygame
 
 
-def load_heart_images(heart_size: int, image_path: str = './heart2.png'):
-    resolved_path = None
-    if image_path:
-        if os.path.isabs(image_path) and os.path.exists(image_path):
-            resolved_path = image_path
-        else:
-            if os.path.exists(image_path):
-                resolved_path = image_path
-            else:
-                candidate = os.path.join(os.path.dirname(__file__), image_path)
-                if os.path.exists(candidate):
-                    resolved_path = candidate
-    if not resolved_path:
-        return None, None
+def load_heart_images(heart_height: int, image_path: str = './heart2.png'):
     try:
-        img = pygame.image.load(resolved_path).convert_alpha()
-        heart = pygame.transform.smoothscale(img, (heart_size, heart_size))
-        dim = heart.copy()
-        shade = pygame.Surface((heart_size, heart_size), pygame.SRCALPHA)
-        shade.fill((160, 160, 160, 255))
-        try:
-            dim.blit(shade, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        except Exception:
-            dim.blit(shade, (0, 0))
-        dim.set_alpha(140)
-        return heart, dim
+        img = pygame.image.load(image_path).convert_alpha()
     except Exception:
+        try:
+            alt = os.path.join(os.path.dirname(__file__), os.path.basename(image_path))
+            img = pygame.image.load(alt).convert_alpha()
+        except Exception:
+            return None, None
+    raw_w, raw_h = img.get_size()
+    if raw_h <= 0:
         return None, None
+    scale = heart_height / raw_h
+    new_w = max(1, int(raw_w * scale))
+    new_h = max(1, int(raw_h * scale))
+    heart = pygame.transform.smoothscale(img, (new_w, new_h))
+    dim = heart.copy()
+    shade = pygame.Surface((new_w, new_h), pygame.SRCALPHA)
+    shade.fill((160, 160, 160, 255))
+    dim.blit(shade, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    dim.set_alpha(140)
+    return heart, dim
+
+
+def _ease_out_back(t: float) -> float:
+    # nice popping easing for animations
+    c1 = 1.70158
+    c3 = c1 + 1
+    t = max(0.0, min(1.0, t))
+    return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2
 
 
 class HeartsHUD:
-    def __init__(self, hp_per_heart: int = 20, heart_size: int = 60, spacing: int = 2,
+    def __init__(self, hp_per_heart: int = 20, heart_size: int = 72, spacing: int = 1,
                  pos=(10, 10), image_path: str = './heart2.png'):
         self.hp_per_heart = hp_per_heart
         self.heart_size = heart_size
@@ -42,48 +44,127 @@ class HeartsHUD:
 
         self.heart, self.dim_heart = load_heart_images(heart_size, image_path)
 
-    def _draw_fallback(self, surface: pygame.Surface, x: int, y: int, filled_ratio: float):
-        size = self.heart_size
-        if filled_ratio <= 0:
-            return
-        w = size if filled_ratio >= 1 else max(1, int(filled_ratio * size))
-        fg = pygame.Surface((w, size), pygame.SRCALPHA)
-        pygame.draw.rect(fg, (220, 30, 30, 255), fg.get_rect(), border_radius=size // 4)
-        surface.blit(fg, (x, y))
+        # Animations state
+        self.prev_hp = None
+        # per-slot: {'start': ms, 'duration': ms, 'power': float}
+        self.anim = {}
+
+    def _trigger_loss_anim(self, slot_idx: int, half_steps_lost: int):
+        # stronger animation for full-heart loss (2 half-steps)
+        power = 1.0 if half_steps_lost >= 2 else 0.55
+        duration = 420 if half_steps_lost >= 2 else 260
+        now = pygame.time.get_ticks()
+        self.anim[slot_idx] = {'start': now, 'duration': duration, 'power': power}
+
+    def _get_anim_scale(self, slot_idx: int):
+        a = self.anim.get(slot_idx)
+        if not a:
+            return 1.0
+        now = pygame.time.get_ticks()
+        t = (now - a['start']) / max(1, a['duration'])
+        if t >= 1.0:
+            # end animation
+            self.anim.pop(slot_idx, None)
+            return 1.0
+        # simple popping scale
+        pop = _ease_out_back(t) * 0.25 * a['power']
+        scale = 1.0 + pop
+        return scale
 
     def draw(self, surface: pygame.Surface, player_obj):
-
         slots = min(3, max(1, player_obj.max_hp // self.hp_per_heart))
         max_shown = slots * self.hp_per_heart
         shown_hp = max(0, min(player_obj.hp, max_shown))
 
-        use_fallback = (self.heart is None or self.dim_heart is None)
+        # Detect losses (heart or half-heart) per slot
+        if self.prev_hp is None:
+            self.prev_hp = shown_hp
+        prev_shown = max(0, min(self.prev_hp, max_shown))
+
+        # compare quantized to halves in each slot
+        for i in range(slots):
+            prev_filled = (prev_shown - i * self.hp_per_heart) / self.hp_per_heart
+            curr_filled = (shown_hp - i * self.hp_per_heart) / self.hp_per_heart
+            q_prev = max(0, min(2, int(prev_filled * 2 + 1e-6)))
+            q_curr = max(0, min(2, int(curr_filled * 2 + 1e-6)))
+            if q_curr < q_prev:
+                self._trigger_loss_anim(i, q_prev - q_curr)
+
+        self.prev_hp = shown_hp
+
+        have_img = (self.heart is not None and self.dim_heart is not None)
+        heart_w = self.heart.get_width() if have_img else self.heart_size
+        heart_h = self.heart.get_height() if have_img else self.heart_size
+        step_w = heart_w + self.spacing
 
         for i in range(slots):
-            x = self.x0 + i * (self.heart_size + self.spacing)
+            base_x = self.x0 + i * step_w
             y = self.y0
-
             filled = (shown_hp - i * self.hp_per_heart) / self.hp_per_heart
+
+            # compute animation scale only (no shake for simplicity)
+            scale = self._get_anim_scale(i)
+
             if filled <= 0:
-                if use_fallback:
-                    size = self.heart_size
-                    bg = pygame.Surface((size, size), pygame.SRCALPHA)
-                    pygame.draw.rect(bg, (80, 80, 80, 140), bg.get_rect(), border_radius=size // 4)
-                    surface.blit(bg, (x, y))
+                # empty slot
+                if have_img:
+                    img = self.dim_heart
+                    if scale != 1.0:
+                        # scale around center
+                        w2 = max(1, int(heart_w * scale))
+                        h2 = max(1, int(heart_h * scale))
+                        scaled = pygame.transform.smoothscale(img, (w2, h2))
+                        x = base_x + (heart_w - w2) // 2
+                        surface.blit(scaled, (x, y + (heart_h - h2) // 2))
+                    else:
+                        surface.blit(img, (base_x, y))
                 else:
-                    surface.blit(self.dim_heart, (x, y))
+                    bg = pygame.Surface((heart_w, heart_h), pygame.SRCALPHA)
+                    pygame.draw.rect(bg, (80, 80, 80, 140), bg.get_rect(), border_radius=heart_h // 4)
+                    if scale != 1.0:
+                        w2 = max(1, int(heart_w * scale))
+                        h2 = max(1, int(heart_h * scale))
+                        bg = pygame.transform.smoothscale(bg, (w2, h2))
+                        x = base_x + (heart_w - w2) // 2
+                        surface.blit(bg, (x, y + (heart_h - h2) // 2))
+                    else:
+                        surface.blit(bg, (base_x, y))
                 continue
-            if use_fallback:
-                size = self.heart_size
-                bg = pygame.Surface((size, size), pygame.SRCALPHA)
-                pygame.draw.rect(bg, (80, 80, 80, 140), bg.get_rect(), border_radius=size // 4)
-                surface.blit(bg, (x, y))
-                self._draw_fallback(surface, x, y, filled_ratio=min(1.0, filled))
-            else:
+
+            # draw background dim then filled portion, with animation scaling
+            draw_x = base_x
+            if have_img:
+                # compose into a temporary surface to scale together
+                temp = pygame.Surface((heart_w, heart_h), pygame.SRCALPHA)
                 if filled >= 1:
-                    surface.blit(self.heart, (x, y))
+                    temp.blit(self.heart, (0, 0))
                 else:
-                    surface.blit(self.dim_heart, (x, y))
-                    w = max(1, int(filled * self.heart_size))
-                    area = pygame.Rect(0, 0, w, self.heart_size)
-                    surface.blit(self.heart, (x, y), area=area)
+                    temp.blit(self.dim_heart, (0, 0))
+                    w = max(1, int(filled * heart_w))
+                    area = pygame.Rect(0, 0, w, heart_h)
+                    temp.blit(self.heart, (0, 0), area=area)
+                if scale != 1.0:
+                    w2 = max(1, int(heart_w * scale))
+                    h2 = max(1, int(heart_h * scale))
+                    temp = pygame.transform.smoothscale(temp, (w2, h2))
+                    draw_x = base_x + (heart_w - w2) // 2
+                    surface.blit(temp, (draw_x, y + (heart_h - h2) // 2))
+                else:
+                    surface.blit(temp, (draw_x, y))
+            else:
+                bg = pygame.Surface((heart_w, heart_h), pygame.SRCALPHA)
+                pygame.draw.rect(bg, (80, 80, 80, 140), bg.get_rect(), border_radius=heart_h // 4)
+                w = max(1, int(min(1.0, filled) * heart_w))
+                fg = pygame.Surface((w, heart_h), pygame.SRCALPHA)
+                pygame.draw.rect(fg, (220, 30, 30, 255), fg.get_rect(), border_radius=heart_h // 4)
+                temp = pygame.Surface((heart_w, heart_h), pygame.SRCALPHA)
+                temp.blit(bg, (0, 0))
+                temp.blit(fg, (0, 0))
+                if scale != 1.0:
+                    w2 = max(1, int(heart_w * scale))
+                    h2 = max(1, int(heart_h * scale))
+                    temp = pygame.transform.smoothscale(temp, (w2, h2))
+                    draw_x = base_x + (heart_w - w2) // 2
+                    surface.blit(temp, (draw_x, y + (heart_h - h2) // 2))
+                else:
+                    surface.blit(temp, (draw_x, y))
