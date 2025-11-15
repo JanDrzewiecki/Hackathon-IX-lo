@@ -141,6 +141,20 @@ class AustraliaMapText(MapText):
     """Specific class for AUSTRALIA text on map4.png for level 4"""
 
     def __init__(self):
+        """Initialize AUSTRALIA text positioned at x=800, y=900"""
+        super().__init__(
+            text="AUSTRALIA",
+            position=(800, 900),
+            font_size=60,  # Large font for dramatic effect
+            color=(0, 255, 0)  # Bright radioactive green
+        )
+
+
+
+class AustraliaMapText(MapText):
+    """Specific class for AUSTRALIA text on map4.png for level 4"""
+
+    def __init__(self):
         """Initialize AUSTRALIA text positioned over Australia on the map"""
         # Position approximately over Australia (right-bottom area of map)
         # Assuming map is roughly 1200x800, Australia is in the lower right

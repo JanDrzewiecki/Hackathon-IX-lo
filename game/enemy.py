@@ -60,9 +60,14 @@ class Enemy:
                 self.frames = self.load_sheet("coal-boss.png", 200, 200)
             if self.frames:
                 self.current_sprite = self.frames[0]
+        elif self.enemy_type == EnemyType.FINAL_BOSS:
+            # Level 3: Final Boss (200x200)
+            self.frames = self.load_sheet("final-boss.png", 200, 200)
+            if self.frames:
+                self.current_sprite = self.frames[0]
 
         # Boss shooting mechanics
-        self.is_boss = (enemy_type == EnemyType.BOSS)
+        self.is_boss = (enemy_type == EnemyType.BOSS or enemy_type == EnemyType.FINAL_BOSS)
         if self.is_boss:
             self.shoot_cooldown = 0
             self.shoot_cooldown_max = config.get('shoot_cooldown', 120)
@@ -127,8 +132,12 @@ class Enemy:
 
         total_width = total_hearts * heart_size + (total_hearts - 1) * spacing
         x0 = self.x + (self.size - total_width) // 2
-        # Move hearts further up for boss to avoid collision with large sprite
-        extra_offset = 40 if self.is_boss else 0
+
+        # For bosses we don't draw the bar here; main will render a centralized animated boss bar.
+        if self.is_boss:
+            return
+
+        extra_offset = 0
         y0 = self.y - heart_size - 4 - extra_offset
 
         # Compute how many hearts are fully/partially filled based on current HP in units of 10
@@ -353,4 +362,3 @@ class Enemy:
                 return True
 
         return False
-

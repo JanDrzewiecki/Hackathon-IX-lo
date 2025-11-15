@@ -98,13 +98,22 @@ class Player:
             return False
 
         # Check if player reached the special NEXT LEVEL corridor (boss room) - CHECK THIS FIRST!
-        if boss_killed and room_manager.check_special_corridor(self.x, self.y, int(URANEK_FRAME_WIDTH * 0.7)):
-            return "next_level"  # Special return value
+        if boss_killed:
+            # For FinalRoomManager (level 3), check exit_transition
+            if hasattr(room_manager, 'check_exit_transition'):
+                if room_manager.check_exit_transition(self.x, self.y, int(URANEK_FRAME_WIDTH * 0.7)):
+                    return "next_level"  # Exit after final boss
+            # For regular RoomManager (levels 1-2), check special corridor
+            elif hasattr(room_manager, 'check_special_corridor'):
+                if room_manager.check_special_corridor(self.x, self.y, int(URANEK_FRAME_WIDTH * 0.7)):
+                    return "next_level"  # Special return value
 
-        # Sprawdź teleportację do innego pokoju
-        did_teleport = room_manager.check_room_transition(self, enemies_alive)
+        # Sprawdź teleportację do innego pokoju (only for regular RoomManager)
+        if hasattr(room_manager, 'check_room_transition'):
+            did_teleport = room_manager.check_room_transition(self, enemies_alive)
+            return did_teleport
 
-        return did_teleport
+        return False
 
     def draw(self, screen):
         # Flip sprite horizontally if facing left

@@ -7,11 +7,13 @@ from bullet import *
 from enemy_bullet import EnemyBullet
 from settings import *
 from room_manager import RoomManager
+from final_room_manager import FinalRoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
 from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText, AustraliaMapText
 from shoe import Shoe
 from shield import Shield
+from map_text import EuroAsiaMapText, NorthSouthAmericaMapText
 from strength import Strength
 
 pygame.init()
@@ -102,7 +104,7 @@ class RoomBackgroundManager:
 
 # Stwórz manager tła i pobierz pierwsze losowe tło
 bg_manager = RoomBackgroundManager()
-room_background = bg_manager.get_random_background(level=1)
+room_background = bg_manager.get_random_background()
 
 # Load power-up icons for HUD
 shoe_icon = None
@@ -454,10 +456,13 @@ def show_map(screen, map_image, level_num=1, show_text=True, text_class=None):
                 # Only ESC to quit
                 pygame.quit()
                 exit()
+            if event.type == KEYDOWN and event.key == K_p:
+                # P key to skip to level 3 (for testing)
+                return "skip_to_level_3"
             if not animating and event.type == MOUSEBUTTONDOWN and event.button == 1:
                 mouse_pos = event.pos
-                # If text exists, check if it was clicked, otherwise allow clicking anywhere
-                if region_text is None or region_text.is_clicked(mouse_pos):
+                # Only allow clicking if text exists AND was clicked
+                if region_text is not None and region_text.is_clicked(mouse_pos):
                     # Start zoom animation toward clicked point
                     click_pos = mouse_pos
                     anim_start_ms = pygame.time.get_ticks()
@@ -538,6 +543,7 @@ def start_new_game(keep_current_level=False):
     global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level, room_background
     global last_powerup_type
     global strength_timer, strength_charges, _prev_t_pressed, original_ad
+    global boss_bar_active, boss_bar_target_enemy, boss_intro_timer, boss_intro_progress
 
     # Store current level if we need to keep it
     saved_level = current_level if keep_current_level else 1
@@ -552,7 +558,11 @@ def start_new_game(keep_current_level=False):
     room_background = bg_manager.get_random_background(level=saved_level)
 
     # Create room manager with corridors
-    room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
+    # For level 4 (after 3 bosses), use FinalRoomManager (single room with final boss)
+    if saved_level == 4:
+        room_manager = FinalRoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
+    else:
+        room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
 
     # Create player in center of game area
     player_start_x = room_manager.room_x + room_manager.room_width // 2 - URANEK_FRAME_WIDTH // 2
@@ -588,6 +598,11 @@ def start_new_game(keep_current_level=False):
     _prev_t_pressed = False
     original_movement = None
     original_ad = None
+    # Reset boss bar/intro
+    boss_bar_active = False
+    boss_bar_target_enemy = None
+    boss_intro_timer = 0
+    boss_intro_progress = 0.0
     current_room_death_counter = 0
     shoe_dropped_this_level = False
     last_powerup_type = saved_powerup_type  # Restore powerup type when transitioning
@@ -655,6 +670,13 @@ strength_timer = 0
 strength_charges = 0
 _prev_t_pressed = False
 original_ad = None
+
+# Boss bar / intro animation state
+boss_bar_active = False
+boss_bar_target_enemy = None
+boss_intro_timer = 0
+boss_intro_duration = int(FPS * 1.0)  # 1 second intro animation
+boss_intro_progress = 0.0
 
 
 
@@ -773,8 +795,14 @@ game_started = False
 while running and not game_started:
     action = show_start_screen(screen, start_screen_image)
     if action == 'start':
-        show_map(screen, map_image)
-        start_new_game()
+        result = show_map(screen, map_image)
+        if result == "skip_to_level_3":
+            # P key was pressed - start at level 3
+            current_level = 3
+            start_new_game(keep_current_level=True)
+        else:
+            # Normal start at level 1
+            start_new_game()
         game_started = True
     elif action == 'about':
         result = show_about_screen(screen, font)
@@ -788,8 +816,9 @@ while running:
     clock.tick(FPS)
     screen.fill((0, 0, 0))
 
-    # Draw room background image if loaded
-    if room_background:
+    # Draw room background image if loaded (only for regular rooms, not final room)
+    # FinalRoomManager draws its own background in draw() method
+    if room_background and not isinstance(room_manager, FinalRoomManager):
         # Scale image to fit screen
         scaled_bg = pygame.transform.scale(room_background, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_bg, (0, 0))
@@ -839,16 +868,24 @@ while running:
         # Show appropriate map based on level
         if current_level == 2 and map2_image:
             # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
-            show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
-        elif current_level == 3 and map3_image:
-            # Level 3: Show map3 with AFRICA text in the center
-            show_map(screen, map3_image, level_num=3, show_text=True, text_class=AfricaMapText)
+            result = show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
+            if result == "skip_to_level_3":
+                current_level = 3  # Override to level 3
+        elif current_level == 3:
+            # Level 3: Show map with AFRICA text in the center
+            result = show_map(screen, map_image, level_num=3, show_text=True, text_class=AfricaMapText)
+            if result == "skip_to_level_3":
+                current_level = 3  # Already level 3
         elif current_level == 4 and map4_image:
-            # Level 4: Show map4 with AUSTRALIA text
-            show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
+            # Level 4: Show map4 with AUSTRALIA text before final boss
+            result = show_map(screen, map4_image, level_num=4, show_text=True, text_class=AustraliaMapText)
+            if result == "skip_to_level_3":
+                current_level = 3  # Override to level 3 if P pressed
         else:
             # Default to map_image
-            show_map(screen, map_image, level_num=current_level)
+            result = show_map(screen, map_image, level_num=current_level)
+            if result == "skip_to_level_3":
+                current_level = 3  # Override to level 3
         # After map, restart game for next level, keeping the current_level
         start_new_game(keep_current_level=True)
         continue
@@ -882,14 +919,33 @@ while running:
 
     # Spawn enemies only if room is not cleared
     if room_manager.current_room_id not in cleared_rooms:
+        prev_enemies_len = len(enemies)
         enemy_spawner.update(enemies)
+        # Detect newly spawned boss and trigger intro animation
+        if len(enemies) > prev_enemies_len:
+            for ne in enemies[prev_enemies_len:]:
+                if getattr(ne, 'is_boss', False):
+                    boss_bar_active = True
+                    boss_bar_target_enemy = ne
+                    boss_intro_timer = boss_intro_duration
+                    boss_intro_progress = 0.0
+                    notifications.append(Notification(player.x, player.y, "BOSS!", "red", font))
+                    break
 
     # Check if room is now cleared (all enemies killed)
     if room_manager.current_room_id not in cleared_rooms and enemy_spawner.enemies_spawned_in_room >= enemy_spawner.max_enemies_for_room and len(enemies) == 0:
         cleared_rooms.add(room_manager.current_room_id)
 
-        # Check if boss room (room 5) was cleared
-        if room_manager.current_room_id == 5:
+        # Check if boss room (room 5 for levels 1-3, room 0 for level 4 final boss) was cleared
+        if current_level == 4 and room_manager.current_room_id == 0:
+            # Final boss killed on level 4
+            boss_killed = True
+            # Create exit corridor in FinalRoomManager
+            if hasattr(room_manager, 'create_exit_corridor'):
+                room_manager.create_exit_corridor()
+            notifications.append(Notification(player.x, player.y, "FINAL BOSS DEFEATED!", "gold", font))
+        elif room_manager.current_room_id == 5:
+            # Regular boss killed on levels 1-3
             boss_killed = True
             notifications.append(Notification(player.x, player.y, "NASTĘPNY POZIOM!", "gold", font))
         else:
@@ -1025,6 +1081,71 @@ while running:
 
     # Draw HUD (hearts)
     hud.draw(screen, player)
+
+    # Draw centralized boss HP bar if active (animated intro)
+    if boss_bar_active and boss_bar_target_enemy is not None:
+        # If boss died or removed, deactivate bar
+        if boss_bar_target_enemy not in enemies:
+            boss_bar_active = False
+            boss_bar_target_enemy = None
+        else:
+            # Position and size
+            bar_width = int(SCREEN_WIDTH * 0.78)
+            bar_height = max(20, int(SCREEN_HEIGHT * 0.05))
+            margin_bottom = 24
+            x_bar = (SCREEN_WIDTH - bar_width) // 2
+            y_target = SCREEN_HEIGHT - margin_bottom - bar_height
+
+            # Intro animation: slide up from offscreen and fade in
+            if boss_intro_timer > 0:
+                boss_intro_progress = 1.0 - (boss_intro_timer / boss_intro_duration)
+                eased = boss_intro_progress * boss_intro_progress * (3 - 2 * boss_intro_progress)  # smoothstep
+                y = SCREEN_HEIGHT + int(bar_height * 2 * (1.0 - eased)) - bar_height - margin_bottom
+                alpha = int(255 * eased)
+                boss_intro_timer -= 1
+            else:
+                y = y_target
+                alpha = 255
+
+            # Draw background strip
+            bg_rect = pygame.Rect(x_bar - 6, y - 6, bar_width + 12, bar_height + 12)
+            s = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
+            s.fill((20, 20, 20, alpha))
+            screen.blit(s, (bg_rect.x, bg_rect.y))
+
+            # Inner bar background
+            inner_rect = pygame.Rect(x_bar, y, bar_width, bar_height)
+            s2 = pygame.Surface((inner_rect.width, inner_rect.height), pygame.SRCALPHA)
+            s2.fill((60, 60, 60, int(alpha * 0.95)))
+            screen.blit(s2, (inner_rect.x, inner_rect.y))
+
+            # Fill based on boss HP
+            shown_hp = max(0, min(boss_bar_target_enemy.hp, boss_bar_target_enemy.max_hp))
+            fill_ratio = (shown_hp / float(boss_bar_target_enemy.max_hp)) if boss_bar_target_enemy.max_hp > 0 else 0.0
+            fill_w = max(0, int(bar_width * fill_ratio))
+            if fill_ratio > 0.5:
+                color = (50, 205, 50)
+            elif fill_ratio > 0.25:
+                color = (255, 215, 0)
+            else:
+                color = (220, 50, 50)
+            if fill_w > 0:
+                fs = pygame.Surface((fill_w, bar_height), pygame.SRCALPHA)
+                fs.fill((*color, alpha))
+                screen.blit(fs, (x_bar, y))
+
+            # Border
+            pygame.draw.rect(screen, (200, 200, 200, ), inner_rect, width=2, border_radius=bar_height//2)
+
+            # HP text centered
+            try:
+                tfont = pygame.font.SysFont(None, max(20, int(bar_height * 0.6)))
+                text = f"BOSS HP: {shown_hp} / {boss_bar_target_enemy.max_hp}"
+                text_surf = tfont.render(text, True, (255, 255, 255))
+                text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2, y + bar_height // 2))
+                screen.blit(text_surf, text_rect)
+            except Exception:
+                pass
 
     # Display power-up charges in bottom-left corner with icons
     hud_y_offset = SCREEN_HEIGHT - 100

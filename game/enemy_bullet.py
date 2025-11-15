@@ -9,6 +9,7 @@ class EnemyBullet:
     # Cached sprites for different boss types
     _coal_sprite = None  # Level 1 coal boss fire
     _trash_sprites = [None, None, None]  # Level 2 trash boss fires (1, 2, 3)
+    _final_sprite = None  # Level 3 final boss fire
     _sprite_size = 48  # Size of the fireball sprite (scaled for visibility)
 
     def __init__(self, enemy_x, enemy_y, target_x, target_y, level=1, fire_sprite_index=0):
@@ -55,8 +56,21 @@ class EnemyBullet:
                         EnemyBullet._trash_sprites[i] = None
             # Set current sprite for this bullet
             self.sprite = EnemyBullet._trash_sprites[self.fire_sprite_index]
+        elif self.level == 4:
+            # Final boss (level 4)
+            if EnemyBullet._final_sprite is None:
+                try:
+                    try:
+                        sprite = pygame.image.load("game/final-boss-fire.png").convert_alpha()
+                    except:
+                        sprite = pygame.image.load("final-boss-fire.png").convert_alpha()
+                    EnemyBullet._final_sprite = pygame.transform.smoothscale(sprite, (self._sprite_size, self._sprite_size))
+                except Exception as e:
+                    print(f"Error loading final-boss-fire.png: {e}")
+                    EnemyBullet._final_sprite = None
+            self.sprite = EnemyBullet._final_sprite
         else:
-            # Coal boss (level 1 and default)
+            # Coal boss (level 1 and 3) and default
             if EnemyBullet._coal_sprite is None:
                 try:
                     try:
