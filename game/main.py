@@ -12,7 +12,7 @@ from blood_particles import BloodParticleSystem
 from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText
 from shoe import Shoe
 from shield import Shield
-from map_text import EuroAsiaMapText
+from map_text import EuroAsiaMapText, NorthSouthAmericaMapText
 
 pygame.init()
 
