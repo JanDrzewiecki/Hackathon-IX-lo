@@ -43,7 +43,7 @@ class Player:
 
         return frames
 
-    def update(self, keys, room_manager, visited_rooms=None, enemies=None):
+    def update(self, keys, room_manager, visited_rooms=None, enemies=None, boss_killed=False):
         # Zapisz poprzednią pozycję
         old_x = self.x
         old_y = self.y

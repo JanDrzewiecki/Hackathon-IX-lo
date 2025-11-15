@@ -38,10 +38,32 @@ class Notification:
             hue_shift = int(progress * 60)  # Cycle through colors
             r = 255
             g = min(255, 215 + int(math.sin(progress * 10) * 40))
-            b = int(math.sin(progress * 15) * 100)
+            b = max(0, int(math.sin(progress * 15) * 100))
             current_color = (r, g, b)
         else:
-            current_color = self.color
+            # Convert color string to RGB if needed
+            if isinstance(self.color, str):
+                color_map = {
+                    "cyan": (0, 255, 255),
+                    "green": (0, 255, 0),
+                    "red": (255, 0, 0),
+                    "white": (255, 255, 255),
+                    "yellow": (255, 255, 0),
+                    "gold": (255, 215, 0),
+                }
+                current_color = color_map.get(self.color.lower(), (255, 255, 255))
+            elif isinstance(self.color, tuple) and len(self.color) == 3:
+                current_color = self.color
+            else:
+                # Default to white if color is invalid
+                current_color = (255, 255, 255)
+
+        # Ensure all color values are integers in valid range
+        current_color = (
+            max(0, min(255, int(current_color[0]))),
+            max(0, min(255, int(current_color[1]))),
+            max(0, min(255, int(current_color[2])))
+        )
 
         # Fade out at the end
         if progress > 0.8:

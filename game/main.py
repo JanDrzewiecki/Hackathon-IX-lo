@@ -154,7 +154,7 @@ def show_map(screen, map_image):
 def start_new_game():
     """Reset all game state to start a fresh run."""
     global room_manager, player, enemies, level, enemy_spawner, notifications
-    global bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems
+    global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level
 
     # Create room manager with corridors
     room_manager = RoomManager(SCREEN_WIDTH, SCREEN_HEIGHT, margin_pixels=100)
@@ -164,26 +164,40 @@ def start_new_game():
     player_start_y = room_manager.room_y + room_manager.room_height // 2 - URANEK_FRAME_WIDTH // 2
     player = Player(player_start_x, player_start_y)
 
+    # Initialize all game state variables
+    enemies = []
+    level = 1
+    enemy_spawner = EnemySpawner(level, room_manager)
+    notifications = []
+    bullets = []
+    enemy_bullets = []
+    bullets_cooldown = 0
+    damage_cooldown = 0
+    blood_systems = []
+    visited_rooms = {0}
+    cleared_rooms = set()
+    boss_killed = False
+    current_level = 1
+    hud = HeartsHUD()
+
+
+# Initialize global variables as None before game starts
+room_manager = None
+player = None
 enemies = []
 level = 1
-enemy_spawner = EnemySpawner(level, room_manager)
+enemy_spawner = None
 notifications = []
 bullets = []
-enemy_bullets = []  # Boss projectiles
+enemy_bullets = []
 bullets_cooldown = 0
 damage_cooldown = 0
 blood_systems = []
-# Track visited rooms
-visited_rooms = {0}  # Start room is visited
-
-# Track cleared rooms (where all enemies were killed)
+visited_rooms = {0}
 cleared_rooms = set()
-
-# Track if boss was killed and next level is available
 boss_killed = False
 current_level = 1
-
-hud = HeartsHUD()
+hud = None
 
 
 
@@ -342,7 +356,7 @@ while running:
             bullets.append(Bullet(player, mx, my))
             bullets_cooldown = FPS / 3
 
-    did_teleport = player.update(keys, room_manager)
+    did_teleport = player.update(keys, room_manager, visited_rooms, enemies, boss_killed)
 
 
     # Handle room transition
@@ -448,7 +462,6 @@ while running:
                     blood_systems.append(BloodParticleSystem(enemy.x, enemy.y, num_particles=25))
                     enemies.remove(enemy)
                     player.points += 1
-                notifications.append(Notification(bullet.x, bullet.y, 10, "gold", font))
                 bullets.remove(bullet)
                 break
 
