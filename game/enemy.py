@@ -132,8 +132,12 @@ class Enemy:
 
         total_width = total_hearts * heart_size + (total_hearts - 1) * spacing
         x0 = self.x + (self.size - total_width) // 2
-        # Move hearts further up for boss to avoid collision with large sprite
-        extra_offset = 40 if self.is_boss else 0
+
+        # For bosses we don't draw the bar here; main will render a centralized animated boss bar.
+        if self.is_boss:
+            return
+
+        extra_offset = 0
         y0 = self.y - heart_size - 4 - extra_offset
 
         # Compute how many hearts are fully/partially filled based on current HP in units of 10
@@ -358,4 +362,3 @@ class Enemy:
                 return True
 
         return False
-
