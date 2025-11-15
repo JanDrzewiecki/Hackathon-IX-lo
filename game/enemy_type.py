@@ -47,7 +47,7 @@ class EnemyTypeConfig:
             'count': 1,         # Only 1 boss
             'color': (150, 0, 150),  # Purple
             'size': 64,         # Larger size
-            'shoot_cooldown': 120  # Shoots every 2 seconds (60 FPS * 2)
+            'shoot_cooldown': 90  # Shoots every 1.5 seconds (60 FPS * 1.5) - reduced from 120
         }
     }
 

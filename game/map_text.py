@@ -108,8 +108,8 @@ class NorthSouthAmericaMapText(MapText):
         """Initialize NORTH AND SOUTH AMERICA text positioned over the Americas on the map"""
         # Position approximately over North/South America (left side of map)
         # Assuming map is roughly 1200x800, Americas are on the left side
-        americas_x = 350  # Adjust this based on your map
-        americas_y = 600  # Adjust this based on your map
+        americas_x = 445  # Adjusted: moved 75 pixels right (370 + 75)
+        americas_y = 620  # Keep Y position same
 
         super().__init__(
             text="NORTH AND SOUTH AMERICA",
@@ -119,3 +119,19 @@ class NorthSouthAmericaMapText(MapText):
         )
 
 
+class AfricaMapText(MapText):
+    """Specific class for AFRICA text on map.png for level 2"""
+
+    def __init__(self):
+        """Initialize AFRICA text positioned in the center of the map"""
+        # Position in center of map
+        # Assuming map is roughly 1200x800
+        africa_x = 850  # Adjusted: moved 50 pixels right (800 + 50)
+        africa_y = 600  # Adjusted: moved 100 pixels up (700 - 100)
+
+        super().__init__(
+            text="AFRICA",
+            position=(africa_x, africa_y),
+            font_size=60,  # Large font for dramatic effect
+            color=(0, 255, 0)  # Bright radioactive green
+        )

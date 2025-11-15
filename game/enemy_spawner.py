@@ -51,8 +51,8 @@ class EnemySpawner:
                 # Get spawn position at room edges
                 x, y = self.room_manager.get_random_spawn_position()
 
-                # Create enemy with specific type
-                enemy = Enemy(x, y, enemy_type, self.room_manager)
+                # Create enemy with specific type and level
+                enemy = Enemy(x, y, enemy_type, self.room_manager, level=self.level)
                 enemies.append(enemy)
                 self.enemies_spawned_in_room += 1
             else:
@@ -71,7 +71,7 @@ class EnemySpawner:
                     y = random.randint(0, SCREEN_HEIGHT)
                     x = SCREEN_WIDTH - ENEMY_SIZE
 
-                enemy = Enemy(x, y, EnemyType.WEAK, None)
+                enemy = Enemy(x, y, EnemyType.WEAK, None, level=self.level)
                 enemies.append(enemy)
 
 

@@ -1,5 +1,4 @@
 import pygame
-import random
 from pygame.locals import *
 from player import *
 from enemy_spawner import *
@@ -10,6 +9,7 @@ from settings import *
 from room_manager import RoomManager
 from hud import HeartsHUD
 from blood_particles import BloodParticleSystem
+from map_text import EuroAsiaMapText, NorthSouthAmericaMapText, AfricaMapText
 from shoe import Shoe
 from shield import Shield
 from map_text import EuroAsiaMapText
@@ -58,6 +58,29 @@ class RoomBackgroundManager:
 # Stwórz manager tła i pobierz pierwsze losowe tło
 bg_manager = RoomBackgroundManager()
 room_background = bg_manager.get_random_background()
+
+# Load power-up icons for HUD
+shoe_icon = None
+shield_icon = None
+try:
+    shoe_icon = pygame.image.load("game/boost_shoe2.png").convert_alpha()
+    shoe_icon = pygame.transform.smoothscale(shoe_icon, (40, 40))
+except:
+    try:
+        shoe_icon = pygame.image.load("boost_shoe2.png").convert_alpha()
+        shoe_icon = pygame.transform.smoothscale(shoe_icon, (40, 40))
+    except:
+        print("Warning: Could not load boost_shoe2.png")
+
+try:
+    shield_icon = pygame.image.load("game/shield.png").convert_alpha()
+    shield_icon = pygame.transform.smoothscale(shield_icon, (40, 40))
+except:
+    try:
+        shield_icon = pygame.image.load("shield.png").convert_alpha()
+        shield_icon = pygame.transform.smoothscale(shield_icon, (40, 40))
+    except:
+        print("Warning: Could not load shield.png")
 
 # Load map image
 try:
@@ -426,9 +449,15 @@ def start_new_game(keep_current_level=False):
     global shoe_item, speed_boost_timer, original_movement, shoe_dropped_this_level, speed_boost_charges, _prev_e_pressed, _prev_r_pressed, shield_timer, shield_charges
     global shoe_item, speed_boost_timer, original_movement, current_room_death_counter, current_room_drop_index, shoe_dropped_this_level, speed_boost_charges, _prev_e_pressed, _prev_r_pressed, shield_timer, shield_charges
     global bullets, enemy_bullets, bullets_cooldown, damage_cooldown, visited_rooms, cleared_rooms, hud, blood_systems, boss_killed, current_level, room_background
+    global last_powerup_type
 
     # Store current level if we need to keep it
     saved_level = current_level if keep_current_level else 1
+
+    # Store power-up charges and type if transitioning between levels
+    saved_speed_charges = speed_boost_charges if keep_current_level else 0
+    saved_shield_charges = shield_charges if keep_current_level else 0
+    saved_powerup_type = last_powerup_type if keep_current_level else None
 
     # 🎲 LOSUJ NOWE TŁO przy każdym starcie gry!
     room_background = bg_manager.get_random_background()
@@ -460,14 +489,15 @@ def start_new_game(keep_current_level=False):
     # Initialize shoe/speed boost and per-room drop state
     shoe_item = None
     speed_boost_timer = 0
-    speed_boost_charges = 0
+    speed_boost_charges = saved_speed_charges  # Restore charges when transitioning
     shield_timer = 0
-    shield_charges = 0
+    shield_charges = saved_shield_charges  # Restore charges when transitioning
     _prev_e_pressed = False
     _prev_r_pressed = False
     original_movement = None
     current_room_death_counter = 0
     shoe_dropped_this_level = False
+    last_powerup_type = saved_powerup_type  # Restore powerup type when transitioning
     # Initialize spawner for first room and decide random drop index for this room (only if not already dropped this level)
     enemy_spawner.reset_for_new_room()
     # Boss-only shoe drop: no random per-room drop index
@@ -524,6 +554,8 @@ current_room_death_counter = 0
 current_room_drop_index = None
 # Level-wide drop flag (any power-up)
 shoe_dropped_this_level = False
+# Track which power-up type was obtained (to force opposite type on next level)
+last_powerup_type = None  # 'shoe' or 'shield'
 
 
 
@@ -709,8 +741,8 @@ while running:
             # Level 2: Show map2 with NORTH AND SOUTH AMERICA text
             show_map(screen, map2_image, level_num=2, show_text=True, text_class=NorthSouthAmericaMapText)
         elif current_level == 3:
-            # Add map3 support in future if needed
-            show_map(screen, map_image, level_num=current_level)
+            # Level 3: Show map with AFRICA text in the center
+            show_map(screen, map_image, level_num=3, show_text=True, text_class=AfricaMapText)
         else:
             # Default to map_image
             show_map(screen, map_image, level_num=current_level)
@@ -777,6 +809,23 @@ while running:
     for notification in notifications:
         notification.update(notifications)
         notification.draw(screen)
+
+    # Draw and handle shoe/shield pickup
+    if shoe_item is not None and shoe_item.alive:
+        shoe_item.draw(screen)
+        # Check if player picks it up
+        if player.hit_box.collide(shoe_item.hit_box):
+            shoe_item.alive = False
+            # Determine which power-up it is and grant charges
+            if isinstance(shoe_item, Shoe):
+                speed_boost_charges += 3  # Grant 3 speed boost charges
+                last_powerup_type = 'shoe'  # Remember that we got shoes
+                notifications.append(Notification(player.x, player.y, "Buty! +3 ładunki (E)", "yellow", font))
+            elif isinstance(shoe_item, Shield):
+                shield_charges += 3  # Grant 3 shield charges
+                last_powerup_type = 'shield'  # Remember that we got shield
+                notifications.append(Notification(player.x, player.y, "Tarcza! +3 ładunki (R)", "cyan", font))
+            shoe_item = None  # Remove item
 
     for bullet in bullets:
         bullet.update(bullets)
@@ -849,25 +898,35 @@ while running:
             bullets.remove(bullet)
 
 
-    # Draw power-up item (shoe or shield) if present and handle pickup
-    if shoe_item is not None:
-        shoe_item.draw(screen)
-        # Check pickup collision
-        if player.hit_box.collide(shoe_item.hit_box):
-            # Grant charges based on item type; do not auto-activate
-            if isinstance(shoe_item, Shoe):
-                speed_boost_charges = 3
-                notifications.append(Notification(player.x, player.y, "Zebrano buty: 3 użycia (E)", "yellow", font))
-            else:
-                shield_charges = 2
-                notifications.append(Notification(player.x, player.y, "Zebrano tarczę: 2 użycia (R)", "cyan", font))
-            # Remove the item from the world
-            shoe_item = None
+    # Draw HUD (hearts)
+    hud.draw(screen, player)
 
-    # Draw HUD (hearts and power-up info)
-    seconds_left = ((speed_boost_timer + FPS - 1) // FPS) if speed_boost_timer > 0 else None
-    shield_seconds = ((shield_timer + FPS - 1) // FPS) if shield_timer > 0 else None
-    hud.draw(screen, player, seconds_left, speed_boost_charges, shield_seconds, shield_charges)
+    # Display power-up charges in bottom-left corner with icons
+    hud_y_offset = SCREEN_HEIGHT - 100
+    if speed_boost_charges > 0:
+        if shoe_icon:
+            # Draw shoe icon
+            screen.blit(shoe_icon, (20, hud_y_offset))
+            # Draw charge count next to icon
+            speed_text = font.render(f"x{speed_boost_charges} (E)", True, (255, 255, 0))
+            screen.blit(speed_text, (70, hud_y_offset + 5))
+        else:
+            # Fallback to text if icon not loaded
+            speed_text = font.render(f"Buty (E): {speed_boost_charges}", True, (255, 255, 0))
+            screen.blit(speed_text, (20, hud_y_offset))
+
+    if shield_charges > 0:
+        shield_y_offset = SCREEN_HEIGHT - 60
+        if shield_icon:
+            # Draw shield icon
+            screen.blit(shield_icon, (20, shield_y_offset))
+            # Draw charge count next to icon
+            shield_text = font.render(f"x{shield_charges} (R)", True, (100, 200, 255))
+            screen.blit(shield_text, (70, shield_y_offset + 5))
+        else:
+            # Fallback to text if icon not loaded
+            shield_text = font.render(f"Tarcza (R): {shield_charges}", True, (100, 200, 255))
+            screen.blit(shield_text, (20, shield_y_offset))
 
     # Display current room and visited rooms in TOP-RIGHT corner
     room_text = font.render(f"Room: {room_manager.current_room_id}", True, (255, 255, 255))
@@ -896,11 +955,19 @@ while running:
                     current_room_death_counter += 1
                     # Boss-only drop: spawn a power-up (shoe or shield) only once per level
                     if (not shoe_dropped_this_level) and shoe_item is None and getattr(enemy, 'is_boss', False):
-                        # Randomly choose which power-up to drop: Shoe (speed) or Shield (invulnerability)
-                        if random.random() < 0.5:
+                        # Force opposite power-up type if player got one in previous level
+                        if last_powerup_type == 'shoe':
+                            # Player got shoes last level, so drop shield this level
+                            shoe_item = Shield(max(0, enemy.x), max(0, enemy.y))
+                        elif last_powerup_type == 'shield':
+                            # Player got shield last level, so drop shoes this level
                             shoe_item = Shoe(max(0, enemy.x), max(0, enemy.y))
                         else:
-                            shoe_item = Shield(max(0, enemy.x), max(0, enemy.y))
+                            # First level or no previous pickup - randomly choose
+                            if random.random() < 0.5:
+                                shoe_item = Shoe(max(0, enemy.x), max(0, enemy.y))
+                            else:
+                                shoe_item = Shield(max(0, enemy.x), max(0, enemy.y))
                         shoe_dropped_this_level = True
                         # Prevent any further per-room drop calculations
                         current_room_drop_index = None
